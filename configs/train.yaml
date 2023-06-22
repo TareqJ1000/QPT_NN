@@ -1,0 +1,15 @@
+init_lr: '1.e-3'
+min_lr: '1.e-7'
+epochs_to_update: 4
+lr_factor: 0.1
+num_of_epochs: 10
+model_path: 'models/nn_type0'
+model_name: 'models_type_0'
+nnType: 0
+params_train: {'num_evo': 256, 'batches_per_epoch': 4096}
+params_val: {'num_evo': 256, 'batches_per_epoch': 4096}
+
+
+
+
+
