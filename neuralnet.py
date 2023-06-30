@@ -14,10 +14,14 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import GaussianDropout
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import LeakyReLU
+from tensorflow.keras.layers import Reshape
+from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras import optimizers
 
 # This is code that generates data batch-wise
-from dataGen import DataGenerator
+from dataGenNew import DataGenerator
 
 
 # This is so that we get live feedback on how well our network is learning at each epoch. Credit to this medium article (https://medium.com/geekculture/how-to-plot-model-loss-while-training-in-tensorflow-9fa1a1875a5_)
@@ -83,8 +87,33 @@ class ff_network(tf.Module):
                                                 Dense(16, activation='relu'),
                                                 Dense(size_of_output, activation='sigmoid') # Apparently, this helps the training somehow. 
                                                 ], name = name)
+            
+        if (type==1): # preliminary architecture proposed for new problem. This is BIG (~50,000 parameters we need to learn at just the output layer alone!!!)
         
-    
+            self.mynn = Sequential([Conv2D(13,(5,5),input_shape=(size_of_input, size_of_input, 5), activation=LeakyReLU(alpha=0.1)),
+                                    MaxPooling2D(pool_size=(2,2)),
+                                    tf.keras.layers.Flatten(),
+                                    Dense(size_of_input*size_of_input*3, activation = 'sigmoid'), 
+                                    Reshape((size_of_input, size_of_input, 3))])
+        
+        if (type==2): # preliminary architecture proposed for new problem. This is BIGGER
+            self.mynn = Sequential([Conv2D(13,(5,5),input_shape=(size_of_input, size_of_input, 5), activation=LeakyReLU(alpha=0.1)),
+                                MaxPooling2D(pool_size=(2,2)),
+                                tf.keras.layers.Flatten(),
+                                Dense(size_of_input*size_of_input*3, activation = 'relu'), 
+                                Dense(size_of_input*size_of_input*3, activation = 'sigmoid'),
+                                Reshape((size_of_input, size_of_input, 3))])
+            
+        if (type==3): # preliminary architecture proposed for new problem. This is BIGGEST 
+            self.mynn = Sequential([Conv2D(13,(5,5),input_shape=(size_of_input, size_of_input, 5), activation=LeakyReLU(alpha=0.1)),
+                                MaxPooling2D(pool_size=(2,2)),
+                                tf.keras.layers.Flatten(),
+                                Dense(size_of_input*size_of_input*3, activation = 'relu'), 
+                                Dense(size_of_input*size_of_input*3, activation = 'relu'), 
+                                Dense(size_of_input*size_of_input*3, activation = 'sigmoid'),
+                                Reshape((size_of_input, size_of_input, 3))])
+        
+                                    
     def forward(self, x): # predicted output of ff_network
         res = self.mynn(x)
         return res
@@ -122,6 +151,4 @@ def train_network(config, model, trainGen, validationGen):
     
 
     
-
-
 
