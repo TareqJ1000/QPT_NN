@@ -97,8 +97,6 @@ def rand_phi(n_coeff,res): #phi on the Bloch sphere, continuous 2d function, dis
     
     return 2*np.pi*norm_rand_f(x, y, coefficients,ang)
     
-    
-
 
 def Ugen(En,th,phi): #unitary from the parameters
     mat=np.zeros([2,2],dtype=complex)

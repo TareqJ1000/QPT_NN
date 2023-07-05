@@ -6,9 +6,17 @@ num_of_epochs: 10
 model_path: 'models/nn_type0'
 model_name: 'models_type_0'
 nnType: 0
-params_train: {'num_evo': 256, 'batches_per_epoch': 4096}
-params_val: {'num_evo': 256, 'batches_per_epoch': 4096}
-
+numPix: 128
+params_train: {'num_evo': 256,
+                'batches_per_epoch': 4096,
+                'noise' : 0.01,
+                'res': 128,
+                'n_coeff': 10}
+params_val: {'num_evo': 256,
+              'batches_per_epoch': 1024,
+              'noise' : 0.01,
+              'res': 128,
+              'n_coeff': 10}
 
 
 
