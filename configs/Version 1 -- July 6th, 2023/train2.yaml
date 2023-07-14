@@ -3,24 +3,21 @@ min_lr: '1.e-7'
 epochs_to_update: 4
 lr_factor: 0.1
 num_of_epochs: 10
-model_path: 'models/nn_type4'
-model_name: 'models_type_4'
-nnType: 4
-numPix: 4
-batchSize: 64
+model_path: 'models/nn_type3'
+model_name: 'models_type_3'
+nnType: 3
+numPix: 16
+batchSize: 16
 params_train: {'num_evo': 256,
-                'batches_per_epoch': 128,
+                'batches_per_epoch': 32,
                 'noise' : 0.01,
                 'res': 16,
                 'n_coeff': 10}
 params_val: {'num_evo': 256,
-              'batches_per_epoch': 128,
+              'batches_per_epoch': 32,
               'noise' : 0.01,
               'res': 16,
               'n_coeff': 10}
-
-
-
 
 
 

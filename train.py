@@ -22,7 +22,7 @@ from dataGenNew import DataGenerator
 
 from neuralnet import ff_network, train_network
 
-stream = open(f"configs/train.yaml", 'r')
+stream = open(f"configs/train2.yaml", 'r')
 cnfg = yaml.load(stream, Loader=Loader)
 
 seed = random.randint(1000, 9999)
