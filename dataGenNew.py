@@ -10,6 +10,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 import random
+import math
 
 # In[2]:
 
@@ -32,10 +33,10 @@ def generate_random_function(x, y, n_coeff,ang): #generate random continuous fun
     for i in range(len(coefficients)):
         for j in range(len(coefficients)):
             function_value += coefficients[i,j] * np.cos(frequency[i] * x1) * np.sin(frequency[j] * y1)
-            
-    function_value = 1 / (1 + np.exp(-function_value))
-      
-    return function_value
+    
+    function_value = function_value/np.max(abs(function_value))
+    
+    return (function_value+1)/2
 
 
 def rand_En(n_coeff,res): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
@@ -54,7 +55,7 @@ def rand_En(n_coeff,res): #random quasi-energy (also called Theta in previous pa
     
     return np.pi * (generate_random_function(X, Y, n_coeff,ang))
 
-def rand_theta(n_coeff,res): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
+def rand_costheta(n_coeff,res): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
     
     ang=random.uniform(0,2*np.pi)
             
@@ -68,7 +69,7 @@ def rand_theta(n_coeff,res): #random quasi-energy (also called Theta in previous
 
     X, Y = np.meshgrid(x, y)
     
-    return np.pi * (generate_random_function(X, Y, n_coeff,ang))
+    return 2*(generate_random_function(X, Y, n_coeff,ang)) - 1
 
 def rand_phi(n_coeff,res): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
     
@@ -127,14 +128,20 @@ def compFidTF(mat1, mat2): # Computes the fidelity between two unitaries
     prod=tf.linalg.trace(tf.math.conj(tf.transpose(mat1))@mat2)
     return 0.5*tf.math.abs(prod)
  
-def fidReconstructTF(num_pixs,y_true,y_pred):
+def fidReconstructTF(num_pixs,y_true,y_pred,norm=False):
     Fvals = []
-    # Define function to compute fidelity (put it under wrapper)
+    # If normalization is true, modify the datagen so that we spit out modulated values
+    if (norm==True):
+        normOne = math.pi
+        normTwo = 2*math.pi
+    else:
+        normOne = 1
+        normTwo = 1
+    # Define function to compute fidelity 
     for i in range(num_pixs):
             for j in range(num_pixs):
                 thU = UgenTF(y_true[i,j,0], y_true[i, j,1], y_true[i,j,2])
-                expU = UgenTF(y_pred[i,j,0], y_pred[i,j,1], y_pred[i,j,2])
-             
+                expU = UgenTF(y_pred[i,j,0]/normOne, y_pred[i,j,1]/normOne, y_pred[i,j,2]/normTwo)
                 Fvals.append(compFidTF(thU,expU))
     Fvals = tf.convert_to_tensor(Fvals)
 
@@ -224,7 +231,7 @@ class DataGenerator(keras.utils.Sequence):
         for i in range(self.num_evo):
             
             a1=rand_En(self.n_coeff,self.res)
-            a2=rand_theta(self.n_coeff,self.res)
+            a2=np.arccos(rand_costheta(self.n_coeff,self.res))
             a3=rand_phi(self.n_coeff,self.res)
             
             if a2[0,0]>np.pi/2: #make sure the first pixel has nz>0
