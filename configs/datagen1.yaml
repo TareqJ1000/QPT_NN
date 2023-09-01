@@ -1,0 +1,23 @@
+total: 1.e1
+num_pixs: 128
+n_coeffs: 3
+noise: 0.01
+stateNoise: 0.05
+alpha: 0.00
+alpha2: 0.00
+
+filename_train: 'dataset_128by128_supp'
+filename_test: 'useless'
+
+
+
+
+
+
+
+
+
+
+
+
+

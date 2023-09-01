@@ -1,13 +1,23 @@
-init_lr: '1.e-3'
+init_lr: '1.e-2'
 min_lr: '1.e-7'
-epochs_to_update: 4
+epochs_to_update: 5
 lr_factor: 0.1
-num_of_epochs: 10
-model_path: 'models/nn_type4'
-model_name: 'models_type_4'
-nnType: 4
-numPix: 4
-batchSize: 64
+num_of_epochs: 100
+model_path: 'models/network128'
+model_name: 'network128'
+load_model: False
+old_model_name: nn_7_neo
+nnType: 6
+num_pixs: 128
+batchSize: 1
+datafile_train: dataset_128by128_5k_train.pkl
+datafile_test: dataset_128by128_5k_test.pkl
+datafile_sup: dataset_128by128_supp.pkl
+
+freeze_policy: 0
+
+valSplit: 0.15
+
 params_train: {'num_evo': 256,
                 'batches_per_epoch': 128,
                 'noise' : 0.01,
@@ -18,7 +28,6 @@ params_val: {'num_evo': 256,
               'noise' : 0.01,
               'res': 16,
               'n_coeff': 10}
-
 
 
 

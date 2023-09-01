@@ -22,28 +22,32 @@ from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import UpSampling2D
 from tensorflow.math import sigmoid
+
+
+import gc
+
 import math
 
 # The encoder and decoder blocks are defined as the HSL - TFP paper
 
-def EncoderBlock(filters, size, layers, middle=False):
+def EncoderBlock(filters, size, layers, middle=False, avgpoolsize=2):
     initializer = tf.random_normal_initializer(0, 0.02)
 
     conv = Sequential()
     if (middle):
-        conv.add(AveragePooling2D(pool_size=(2,2)))
+        conv.add(AveragePooling2D(pool_size=(avgpoolsize,avgpoolsize)))
     for i in range(layers):
         conv.add(Conv2D(filters, (size,size), padding='same'))
         conv.add(GroupNormalization())
         conv.add(ReLU())
     return conv
 
-def DecoderBlock(filters, size, layers):
+def DecoderBlock(filters, size, layers, upsamplesize=2):
     
-    initializer = tf.random_normal_initializer(0, 0.02)
+   # initializer = tf.random_normal_initializer(0, 0.02)
     
     conv = Sequential()
-    conv.add(UpSampling2D(size=(2,2)))
+    conv.add(UpSampling2D(size=(upsamplesize, upsamplesize)))
     
     for i in range(layers):
         conv.add(Conv2DTranspose(filters, (size,size), padding='same'))
@@ -80,8 +84,34 @@ def uNet(num_pixel, nnType, name):
                down_stack = [EncoderBlock(32,3,1), EncoderBlock(64,3,1),  EncoderBlock(128,3,1), EncoderBlock(256,3,1) ]
                middle = EncoderBlock(512,3,1,middle=True)
                up_stack = [DecoderBlock(256,3,1), DecoderBlock(128,3,1), DecoderBlock(64,3,1), DecoderBlock(32,3,1) ]
+    
+    if (nnType==6): # 64 x 64 images
+        down_stack = [EncoderBlock(32,3,1), EncoderBlock(64,3,1),  EncoderBlock(128,3,1), EncoderBlock(256,3,1), EncoderBlock(512,3,1) , EncoderBlock(1024,3,1)  ]
+        middle = EncoderBlock(2048,3,1,middle=True)
+        up_stack = [DecoderBlock(1024,3,1), DecoderBlock(512,3,1), DecoderBlock(256,3,1), DecoderBlock(128,3,1), DecoderBlock(64,3,1), DecoderBlock(32,3,1) ]
 
-               
+    
+    if (nnType==7): #128 x 128 Images
+        down_stack = [EncoderBlock(32,3,1), EncoderBlock(128,3,1), EncoderBlock(512,3,1),   EncoderBlock(2048,3,1)]
+        middle = AveragePooling2D(pool_size=(2,2))
+        up_stack = [DecoderBlock(2048,3,1),   DecoderBlock(512,3,1, upsamplesize=4),  DecoderBlock(128,3,1, upsamplesize=4),   DecoderBlock(32,3,1, upsamplesize=4)]
+    
+    
+    if (nnType==8): # 32 x 32 Images
+        down_stack = [EncoderBlock(32,3,1), EncoderBlock(64,3,1),  EncoderBlock(128,3,1), EncoderBlock(256,3,1), EncoderBlock(512,3,1)]
+        middle = EncoderBlock(1024,3,1,middle=True)
+        up_stack = [DecoderBlock(512,3,1), DecoderBlock(256,3,1), DecoderBlock(128,3,1), DecoderBlock(64,3,1), DecoderBlock(32,3,1)]
+    
+    if (nnType==9): # 16 x 16 images but with more convolutional layers
+        down_stack = [EncoderBlock(32,3,2), EncoderBlock(64,3,2),  EncoderBlock(128,3,2), EncoderBlock(256,3,2) ]
+        middle = EncoderBlock(512,3,2,middle=True)
+        up_stack = [DecoderBlock(256,3,2), DecoderBlock(128,3,2), DecoderBlock(64,3,2), DecoderBlock(32,3,2) ]
+    
+    if (nnType==10): #128 x 128 Images
+        down_stack = [EncoderBlock(32,3,1), EncoderBlock(64,3,1), EncoderBlock(128,3,1), EncoderBlock(256,3,1), EncoderBlock(512,3,1), EncoderBlock(1024,3,1)]
+        middle = EncoderBlock(2048, 3, 1, middle=True)
+        up_stack = [DecoderBlock(1024,3,1),  DecoderBlock(512,3,1), DecoderBlock(256,3,1),  DecoderBlock(128,3,1), DecoderBlock(64,3,1),  DecoderBlock(32,3,1)]
+
     # We now string together the encoder/decoder blocks. This time, we also add skip layers
    
     x=inputs
@@ -92,7 +122,10 @@ def uNet(num_pixel, nnType, name):
         x = down_stack[ii](x)
         skips.append(x)
         if (ii < len(down_stack)-1):
-            x = MaxPooling2D(pool_size=(2,2))(x)
+            if (nnType==7):
+                x = MaxPooling2D(pool_size=(4,4))(x)
+            else:
+                x = MaxPooling2D(pool_size=(2,2))(x)
         
     x = middle(x)
     
@@ -100,7 +133,6 @@ def uNet(num_pixel, nnType, name):
     skips = reversed(skips)
     
     for up, skip in zip(up_stack,skips): 
-        print(skip)
         x = up(x)
         x = tf.keras.layers.Concatenate()([x, skip])
     
@@ -115,14 +147,17 @@ def uNet(num_pixel, nnType, name):
     return unet
     
 # Test out the new function 
-#ziggy = uNet(16, 5,'spiffyfaf')
-#ziggy.summary()
+
+ziggy = uNet(128, 10,'spiffyfaf')
+
+ziggy.summary()
+print('BEE FREE')
+#gc.collect()
+print('FREE')
 
 
 
 
-    
-    
     
 
         

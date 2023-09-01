@@ -20,8 +20,7 @@ def generate_random_function(x, y, n_coeff,ang): #generate random continuous fun
     # Calculate the Fourier series
     coefficients = np.random.rand(n_coeff,n_coeff)
     n = np.arange(0, n_coeff)  
-    frequency = 2 * np.pi * n    # frequencies
-    
+    frequency = 2 * np.pi * (n+1)    # frequencies
     # Initialize the function value
     function_value = np.zeros([len(x),len(y)]) #this way it returns a matrix
     
@@ -32,7 +31,7 @@ def generate_random_function(x, y, n_coeff,ang): #generate random continuous fun
     # Compute the Fourier series
     for i in range(len(coefficients)):
         for j in range(len(coefficients)):
-            function_value += coefficients[i,j] * np.cos(frequency[i] * x1) * np.sin(frequency[j] * y1)
+            function_value += coefficients[i,j]*(np.cos(frequency[i] * x1) * np.sin(frequency[j] * y1)+np.sin(frequency[i] * x1) * np.cos(frequency[j] * y1)+np.cos(frequency[i] * x1) * np.cos(frequency[j] * y1)+np.sin(frequency[i] * x1) * np.sin(frequency[j] * y1))
     
     function_value = function_value/np.max(abs(function_value))
     
@@ -147,7 +146,6 @@ def fidReconstructTF(num_pixs,y_true,y_pred,norm=False):
 
     return Fvals
 
-
 def measure(in_pol,out_pol,evo_op,noise): #polarimetric measurement with noise
     
     action=np.dot(evo_op,in_pol)
@@ -155,6 +153,8 @@ def measure(in_pol,out_pol,evo_op,noise): #polarimetric measurement with noise
     mel=np.vdot(out_pol,action)
     
     return abs(abs(mel)**2 + random.gauss(0,noise))
+
+# State definitions
 
 l=np.array([1,0])
 r=np.array([0,1])
@@ -165,31 +165,47 @@ v=np.array([1,-1])/np.sqrt(2)
 d=np.array([1,1j])/np.sqrt(2)
 a=np.array([1,-1j])/np.sqrt(2)
 
-def pixel_measure(En,th,phi,noise):
+def perturbState(state, randNoise):
+    perturbingState = np.array([np.sqrt(1 - np.random.uniform(0,randNoise)), np.sqrt(np.random.uniform(0,randNoise))*np.exp(1j*randNoise)])
+    newState = state + perturbingState
+    # Enforce normalization 
+    normConst = np.sqrt(np.sum(np.abs(newState)**2))
+    return newState/normConst
+
+def pixel_measure(En,th,phi,noise, stateNoise):
     
+    # Let's introduce slight perturbations onto the states that we choose to measure. 
+    
+    l_per = perturbState(l, stateNoise)
+    r_per = perturbState(r, stateNoise)
+    h_per = perturbState(h, stateNoise)
+    v_per = perturbState(v, stateNoise)
+    d_per = perturbState(d, stateNoise)
+    a_per = perturbState(a, stateNoise)
+
     unit_op=Ugen(En,th,phi)
     
     results=np.zeros([5])
       
-    results[0]=measure(l,l,unit_op,noise)
+    results[0]=measure(l_per,l_per,unit_op,noise)
             
-    results[1]=measure(l,h,unit_op,noise)
+    results[1]=measure(l_per,h_per,unit_op,noise)
     
-    results[2]=measure(l,d,unit_op,noise)
+    results[2]=measure(l_per,d_per,unit_op,noise)
             
-    results[3]=measure(h,h,unit_op,noise)
+    results[3]=measure(h_per,h_per,unit_op,noise)
     
-    results[4]=measure(h,d,unit_op,noise)
+    results[4]=measure(h_per,d_per,unit_op,noise)
     
     return results
 
-def full_measure(En,th,phi,res,noise): #measures each pixel and returns flattened res^2 X dim_in vector (dim_in=5)
+def full_measure(En,th,phi,res,noise, stateNoise): #measures each pixel and returns flattened res^2 X dim_in vector (dim_in=5)
     
     results=np.zeros([res,res,5])
 
     for ind1 in range(res):
         for ind2 in range(res):
-            results[ind1,ind2,:]=pixel_measure(En[ind1,ind2],th[ind1,ind2],phi[ind1,ind2],noise)
+            results[ind1,ind2,:]=pixel_measure(En[ind1,ind2],th[ind1,ind2],phi[ind1,ind2],noise, stateNoise)
         
     
     return results
