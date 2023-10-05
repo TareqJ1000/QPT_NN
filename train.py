@@ -6,7 +6,10 @@ import random
 import math
 
 import tensorflow as tf
+import tensorflow_addons as tfa
 import matplotlib.pyplot as plt
+
+from tensorflow.python.client import device_lib
 
 # This is code that generates data batch-wise
 from dataGenNew import DataGenerator
@@ -14,8 +17,12 @@ from dataGenNew import DataGenerator
 from neuralnet import ff_network, train_network, avg_fidelity_loss
 
 # Load configuration file
-stream = open(f"configs/train2.yaml", 'r')
+stream = open(f"configs/train0.yaml", 'r')
 cnfg = yaml.load(stream, Loader=Loader)
+
+# Verify that we are using the GPU 
+#print(device_lib.list_local_devices())
+#print(tf.config.list_physical_devices('GPU'))
 
 seed = random.randint(1000, 9999)
 print(f'seed: {seed}')
@@ -27,20 +34,19 @@ nntype = cnfg['nnType']
 # Initializes the model for training 
 model = ff_network(cnfg['num_pixs'],3,nntype,cnfg['model_name'])
 
-
 # Let's try performing transfer learning!!!
 
 # Freeze all layers
 for layer in model.mynn.layers:
     layer.trainable = False
 
-freeze_policy = cnfg['freeze_policy']
+freeze_policy_begin = cnfg['freeze_policy_begin']
+freeze_policy_end = cnfg['freeze_policy_end']
 
 # Unfreeze a few ~ approx middle of dataset 
-for ii in range(freeze_policy, len(model.mynn.layers)):
+for ii in range(freeze_policy_begin, freeze_policy_end):
     model.mynn.layers[ii].trainable = True
-
-
+    
 # Initialize training and validation set 
 trainVar = cnfg['params_train']
 valVar = cnfg['params_val']
@@ -50,4 +56,4 @@ trainGen = DataGenerator(**trainVar)
 validationGen = DataGenerator(**valVar)
 
 # With everything in place, let us train the model 
-train_network(cnfg, model)
+train_network(cnfg, model, trainGen, validationGen)
