@@ -12,6 +12,8 @@ from tensorflow import keras
 import random
 import math
 
+import matplotlib.pyplot as plt
+
 # Define Pauli matrices
 
 s1 = np.matrix([[0,1],[1,0]])
@@ -321,10 +323,6 @@ def compute_waveplate_cart(num_waveplate, n_coeff, res, maxAng, isCart2):
     else: 
           return En, nx, ny, nz
       
-        
-          
-    
-
 # Complete function which generates the unitary for one or more waveplates and returns En, theta, phi
 
 def compute_waveplate(num_waveplate, n_coeff, res, maxAng):
@@ -410,7 +408,16 @@ def measure(in_pol,out_pol,evo_op,noise): #polarimetric measurement with noise
     
     mel=np.vdot(out_pol,action)
     
-    return abs(abs(mel)**2 + random.gauss(0,noise))
+    pixNoise = random.gauss(0,noise)
+    
+    result = 0
+    
+    if(abs(abs(mel)**2 + pixNoise)>1):
+        result = abs(mel)**2 - pixNoise 
+    else:
+        result = abs(mel)**2 + pixNoise 
+    
+    return result
 
 # State definitions
 
@@ -496,7 +503,7 @@ def full_measure_cart(En,nx,ny,res,noise,stateNoise, nz=None): # Same function, 
     
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, noise=0.01,stateNoise=0.01, n_coeff=10, res=128, batch_size=100, batches_per_epoch=100, alpha=0.3, n_coeff_low=1, n_coeff_high=15, maxAng=math.radians(10), isWaveplates = True, num_waveplates=10, isCart=False, isCart2=False): #default values
+    def __init__(self, noise=0.01,stateNoise=0.01, n_coeff=10, res=128, batch_size=100, batches_per_epoch=100, alpha=0.3, n_coeff_low=1, n_coeff_high=15, maxAng=math.radians(10), isWaveplates = True, num_waveplates=10, isCart=False, isCart2=False, num_waveplates_min=1, num_waveplates_max=2): #default values
         'Initialization'
         self.batch_size=batch_size # number of datasets per batch size
         self.res=res # resolution to use
@@ -507,7 +514,8 @@ class DataGenerator(keras.utils.Sequence):
         self.stateNoise=stateNoise # by how much do we perturb our polametric measurements?
         self.alpha=alpha # proportion of data that are "normal" and fixed specifically near the pole 
         self.isWaveplates=isWaveplates # do we generate waveplates, or continuous processes?
-        self.num_waveplates=num_waveplates # how many waveplates should we cascade?
+        self.num_waveplates_min=num_waveplates_min # how many waveplates should we cascade?
+        self.num_waveplates_max=num_waveplates_max
         self.maxAng = maxAng # maximum rotation that we apply to the unitary. 
         self.isCart = isCart # Switch between polar and hybrid cartesian approach 
         self.isCart2 = isCart2 # Another parameterization consisting of En, 
@@ -544,7 +552,7 @@ class DataGenerator(keras.utils.Sequence):
             n_coeff = int(np.random.uniform(low=self.n_coeff_low, high=self.n_coeff_high+1))
     
             fac = np.random.uniform(0,0.001)
-            num_waveplates = np.random.randint(1, high=self.num_waveplates+1)
+            num_waveplates = np.random.randint(self.num_waveplates_min, high=self.num_waveplates_max+1)
             
             if(self.isWaveplates):
                 if (self.isCart): # Cartesian Coordinates w/ explicit normalization
@@ -565,7 +573,6 @@ class DataGenerator(keras.utils.Sequence):
                         a2=(np.pi-a2)%(np.pi) # theta
                         a1=(np.pi-a1)%(np.pi) # En 
                         a3=(np.pi+a3)%(2*np.pi) # phi
-                    
             else:
                 a1=rand_En(n_coeff,self.res,self.maxAng)
                 
@@ -584,6 +591,7 @@ class DataGenerator(keras.utils.Sequence):
                 elif(self.isCart2):
                     a2=rand_nx(n_coeff,self.res,self.maxAng)
                     a3=rand_ny(n_coeff,self.res,self.maxAng)
+                    
                 else:
                     if(i > normal):
                         a2=fac*np.arccos(rand_costheta(n_coeff,self.res, self.maxAng))
@@ -595,7 +603,6 @@ class DataGenerator(keras.utils.Sequence):
                         a2=(np.pi-a2)%(np.pi)
                         a1=(np.pi-a1)%(np.pi)
                         a3=(np.pi+a3)%(2*np.pi)
-        
             y[i,:,:,0]=a1
             y[i,:,:,1]=a2
             y[i,:,:,2]=a3
@@ -610,7 +617,6 @@ class DataGenerator(keras.utils.Sequence):
             else:
                 X[i]=full_measure(a1,a2,a3,self.res,self.noise, self.stateNoise)
             
-            #print(X)
         return X, y
 
 # In[ ]:

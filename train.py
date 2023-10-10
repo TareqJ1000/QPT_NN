@@ -6,7 +6,7 @@ import random
 import math
 
 import tensorflow as tf
-import tensorflow_addons as tfa
+#import tensorflow_addons as tfa
 import matplotlib.pyplot as plt
 
 from tensorflow.python.client import device_lib
@@ -31,10 +31,12 @@ random.seed(seed)
 cnfg['model_name'] +=  f"_{seed}"
 nntype = cnfg['nnType']
 
-# Initializes the model for training 
-model = ff_network(cnfg['num_pixs'],3,nntype,cnfg['model_name'])
+kernelSize = cnfg['kernelSize']
 
-# Let's try performing transfer learning!!!
+# Initializes the model for training 
+model = ff_network(cnfg['num_pixs'],3,nntype,cnfg['model_name'], kernelSize=kernelSize)
+
+# Let's try performing transfer learning!
 
 # Freeze all layers
 for layer in model.mynn.layers:

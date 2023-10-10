@@ -62,15 +62,15 @@ def DecoderBlock(filters, size, layers, upsamplesize=2):
     return conv
 
 
-def uNet(num_pixel, nnType, name):
+def uNet(num_pixel, nnType, name, kernelSize=3):
     inputs = Input(shape = [num_pixel, num_pixel, 5])
     isCart = False
     isCart2 = False
     
     if (nnType==2 or nnType==3 or nnType==4): # 16 x 16 
-        down_stack = [EncoderBlock(32,3,1), EncoderBlock(64,3,1),  EncoderBlock(128,3,1), EncoderBlock(256,3,1) ]
-        middle = EncoderBlock(512,3,1,middle=True)
-        up_stack = [DecoderBlock(256,3,1), DecoderBlock(128,3,1), DecoderBlock(64,3,1), DecoderBlock(32,3,1) ]
+        down_stack = [EncoderBlock(32,kernelSize,1), EncoderBlock(64,kernelSize,1),  EncoderBlock(128,kernelSize,1), EncoderBlock(256,kernelSize,1) ]
+        middle = EncoderBlock(512,kernelSize,1,middle=True)
+        up_stack = [DecoderBlock(256,kernelSize,1), DecoderBlock(128,kernelSize,1), DecoderBlock(64,kernelSize,1), DecoderBlock(32,kernelSize,1) ]
         
         if(nnType==3):
             isCart = True
@@ -79,9 +79,9 @@ def uNet(num_pixel, nnType, name):
         
         
     if(nnType==5 or nnType==6 or nnType==7): # 32 x 32
-        down_stack = [EncoderBlock(32,3,1), EncoderBlock(64,3,1),  EncoderBlock(128,3,1), EncoderBlock(256,3,1), EncoderBlock(512,3,1)]
-        middle = EncoderBlock(1024,3,1,middle=True)
-        up_stack = [DecoderBlock(512,3,1), DecoderBlock(256,3,1), DecoderBlock(128,3,1), DecoderBlock(64,3,1), DecoderBlock(32,3,1)]
+        down_stack = [EncoderBlock(32,kernelSize,1), EncoderBlock(64,kernelSize,1),  EncoderBlock(128,kernelSize,1), EncoderBlock(256,kernelSize,1), EncoderBlock(512,kernelSize,1)]
+        middle = EncoderBlock(1024,kernelSize,1,middle=True)
+        up_stack = [DecoderBlock(512,kernelSize,1), DecoderBlock(256,kernelSize,1), DecoderBlock(128,kernelSize,1), DecoderBlock(64,kernelSize,1), DecoderBlock(32,kernelSize,1)]
         
         if(nnType==6):
             isCart = True
@@ -99,9 +99,9 @@ def uNet(num_pixel, nnType, name):
             isCart2 = True
     
     if(nnType==11 or nnType==12 or nnType==13): #128 x 128
-        down_stack = [EncoderBlock(32,3,1), EncoderBlock(64,3,1),  EncoderBlock(128,3,1), EncoderBlock(256,3,1),  EncoderBlock(512,3,1), EncoderBlock(1024,3,1), EncoderBlock(2048,3,1)]
-        middle = EncoderBlock(4096, 3, 1, middle=True)
-        up_stack = [DecoderBlock(2048,3,1), DecoderBlock(1024,3,1), DecoderBlock(512,3,1), DecoderBlock(256,3,1), DecoderBlock(128,3,1), DecoderBlock(64,3,1),  DecoderBlock(32,3,1)]
+        down_stack = [EncoderBlock(32,kernelSize,1), EncoderBlock(64,kernelSize,1),  EncoderBlock(128,kernelSize,1), EncoderBlock(256,kernelSize,1),  EncoderBlock(512,kernelSize,1), EncoderBlock(1024,kernelSize,1), EncoderBlock(2048,kernelSize,1)]
+        middle = EncoderBlock(4096, kernelSize, 1, middle=True)
+        up_stack = [DecoderBlock(2048,kernelSize,1), DecoderBlock(1024,kernelSize,1), DecoderBlock(512,kernelSize,1), DecoderBlock(256,kernelSize,1), DecoderBlock(128,kernelSize,1), DecoderBlock(64,kernelSize,1),  DecoderBlock(32,kernelSize,1)]
         
         if(nnType==12):
             isCart = True
@@ -145,9 +145,9 @@ def uNet(num_pixel, nnType, name):
     
 # Test out the new function 
 
-ziggy = uNet(16, 3,'spiffyfaf')
+#ziggy = uNet(16, 2,'spiffyfaf', kernelSize=3)
 
-ziggy.summary()
+#ziggy.summary()
 
 
 

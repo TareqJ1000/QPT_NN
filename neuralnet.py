@@ -8,7 +8,7 @@ import pickle
 from random import choice
 
 import tensorflow as tf
-import tensorflow_addons as tfa
+#import tensorflow_addons as tfa
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
 
@@ -105,7 +105,7 @@ class PlotLearning(tf.keras.callbacks.Callback):
     
 
 class ff_network(tf.Module):
-    def __init__ (self, size_of_input, size_of_output, type, name): # This initializes the neural network with a certain chosen architecture
+    def __init__ (self, size_of_input, size_of_output, type, name, kernelSize=3): # This initializes the neural network with a certain chosen architecture
         super(ff_network, self).__init__()
         
         if (type==0): # This is the original architecture of the network as seen in the paper. 
@@ -131,7 +131,7 @@ class ff_network(tf.Module):
                                        Dense(size_of_input*size_of_input*3, activation = 'sigmoid'), Reshape((size_of_input, size_of_input, 3))], name=name)
         
         if (type==2 or type==3 or type==4 or type==5 or type==6 or type==7 or type==8 or type==9 or type==10 or type==11 or type==12 or type==13):
-           self.mynn = uNet(size_of_input, type, name)
+           self.mynn = uNet(size_of_input, type, name, kernelSize=kernelSize)
            #self.mynn.name = name
            
            
@@ -176,7 +176,7 @@ def mse_cyclic(y_true, y_pred):
     part_two = K.mean(K.square(y_pred[0,:,:,1]-y_true[0,:,:,1]))
     part_three = K.mean(
         K.minimum(K.square(y_pred[0,:,:,2]-y_true[0,:,:,2]), 
-                  K.minimum(K.square(y_pred[0,:,:,2] - y_true[0,:,:,2] + 1), K.square(y_pred[0,:,:,2] - y_true[0,:,:,2] - 1))))
+                  K.minimum(K.square(y_pred[0,:,:,2] - y_true[0,:,:,2] + 2*np.pi), K.square(y_pred[0,:,:,2] - y_true[0,:,:,2] - 2*np.pi))))
 
     return tf.stack([part_one, part_two, part_three], axis=0)
 

@@ -10,6 +10,7 @@ old_model_name: network128_16batch
 nnType: 2
 num_pixs: 16
 batchSize: 16
+kernelSize: 5
 enableGPU: True
 
 datafile_sup: dataset_16by16_supp_tiny.pkl
@@ -25,10 +26,11 @@ params_train: {'batch_size': 16,
                 'stateNoise': 0.00, 
                 'alpha': 0.30, 
                 'res': 16,
-                'n_coeff_high': 1, 
+                'n_coeff_high': 2, 
                 'n_coeff_low': 1,
                 'isWaveplates': True,
-                'num_waveplates': 2, 
+                'num_waveplates_min': 2, 
+                'num_waveplates_max': 3,
                 'maxAng': 10}
 
 params_val: {'batch_size': 16,
@@ -37,10 +39,11 @@ params_val: {'batch_size': 16,
               'stateNoise': 0.00,
               'alpha': 0.30,
               'res': 16,
-              'n_coeff_high': 1, 
+              'n_coeff_high': 2, 
               'n_coeff_low': 1,                
               'isWaveplates': True,
-              'num_waveplates': 2, 
+              'num_waveplates_min': 2, 
+              'num_waveplates_max': 3,
               'maxAng': 10}
 
 
