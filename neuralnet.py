@@ -74,7 +74,7 @@ class PlotLearning(tf.keras.callbacks.Callback):
             axs.grid()
             
         else: # Make plots for the whole set of metrics
-            f, axs = plt.subplots(1, 3, figsize=(5,5))
+            f, axs = plt.subplots(1, 2, figsize=(5,5))
             clear_output(wait=True)
         
             axs[0].plot(range(1, epoch + 2), 
@@ -85,13 +85,10 @@ class PlotLearning(tf.keras.callbacks.Callback):
                 label='val_loss')
             axs[1].plot(range(1,epoch+2), self.metrics['minMean'], label='avg_Fid')
             axs[1].plot(range(1,epoch+2), self.metrics['val_minMean'], label ='avg_fid_val')
-            axs[2].plot(range(1,epoch+2), self.metrics['minMeanNormal'], label='avg_Fid_norm')
             axs[0].legend()
             axs[0].grid()
             axs[1].legend()
             axs[1].grid()
-            axs[2].legend()
-            axs[2].grid()
             
         model_name = self.model.name
         directory = f'plots/{model_name}'
@@ -147,7 +144,7 @@ def avg_fidelity_loss(num_pixs):
     def minMean(y_true, y_pred):
             lets_go = tf.map_fn(lambda ind: fidReconstructTF(num_pixs,ind[0],ind[1]), elems=(y_true,y_pred), dtype=(tf.float32, tf.float32), fn_output_signature=tf.float32)
             mean_loss = tf.reduce_mean(lets_go)
-            tf.print(mean_loss)
+            #tf.print(mean_loss)
             return mean_loss
     return minMean 
 
@@ -171,13 +168,16 @@ def avg_norm_loss(num_pixs,X_sup, y_sup, model):
 
 # This applies the cyclic MSE to the last index only (which is meant to be phi). En and theta are non periodic, so they do not get the same treatment
 def mse_cyclic(y_true, y_pred): 
+    
+    print(np.shape(y_pred))
+    
     # We assemble the penultimate array elementwise
-    part_one = K.mean(K.square(y_pred[0,:,:,0]-y_true[0,:,:,0]))
-    part_two = K.mean(K.square(y_pred[0,:,:,1]-y_true[0,:,:,1]))
+    part_one = K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0]))
+    part_two = K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1]))
     part_three = K.mean(
-        K.minimum(K.square(y_pred[0,:,:,2]-y_true[0,:,:,2]), 
-                  K.minimum(K.square(y_pred[0,:,:,2] - y_true[0,:,:,2] + 2*np.pi), K.square(y_pred[0,:,:,2] - y_true[0,:,:,2] - 2*np.pi))))
-
+        K.minimum(K.square(y_pred[:,:,:,2]-y_true[:,:,:,2]), 
+                  K.minimum(K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] + 2*np.pi), K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] - 2*np.pi))))
+   
     return tf.stack([part_one, part_two, part_three], axis=0)
 
 
@@ -245,11 +245,11 @@ def train_network(config, model, trainGen, validationGen):
         os.makedirs(model_path)
     
     # Load up training dataset
-    #train_dataset = loadData(config['datafile_train'], batchSize)
+    train_dataset = loadData(config['datafile_train'], batchSize)
     #X_train, y_train = loadData(config['datafile_train'], batchSize, forTrain=False)
 
     # Load up validation dataset 
-    #test_dataset = loadData(config['datafile_test'], batchSize)
+    test_dataset = loadData(config['datafile_test'], batchSize)
     #X_test, y_test = loadData(config['datafile_test'], batchSize, forTrain=False)
     
     # load up supplementary dataset 
@@ -270,10 +270,10 @@ def train_network(config, model, trainGen, validationGen):
     reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor = lr_factor, patience = epochs_to_update, min_lr = min_lr, verbose = 1)
     
     # If GPU is enabled, then we only compute the loss of our network
-    
+    enableGPU = False
     metricList = []
     if (enableGPU==False):
-        metricList = [avg_fidelity_loss(num_pixs),avg_norm_loss(num_pixs, X_sup, y_sup, model.mynn)]
+        metricList = [avg_fidelity_loss(num_pixs)]
     model.mynn.compile(loss=mse_cyclic, optimizer=adam_optimizer, metrics=metricList)
     
     if (config['load_model']):
@@ -287,7 +287,8 @@ def train_network(config, model, trainGen, validationGen):
     # log_dir = 'logs'
     # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     
-    history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
+    #history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
+    history = model.mynn.fit(train_dataset, validation_data=test_dataset, batch_size=batchSize, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
     # save trained model at the very end
     model_json = model.mynn.to_json()
     with open(model_path + f"/{model_name}.json", 'w') as json_file:
