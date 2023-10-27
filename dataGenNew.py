@@ -503,7 +503,7 @@ def full_measure_cart(En,nx,ny,res,noise,stateNoise, nz=None): # Same function, 
     
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, noise=0.01,stateNoise=0.01, n_coeff=10, res=128, batch_size=100, batches_per_epoch=100, alpha=0.3, n_coeff_low=1, n_coeff_high=15, maxAng=math.radians(10), isWaveplates = True, num_waveplates=10, isCart=False, isCart2=False, num_waveplates_min=1, num_waveplates_max=2): #default values
+    def __init__(self, noise=0.01,stateNoise=0.01, n_coeff=10, res=128, batch_size=100, batches_per_epoch=100, alpha=0.3, n_coeff_low=1, n_coeff_high=15, maxAng=math.radians(10), isWaveplates = True, num_waveplates=10, num_waveplates_min=1, num_waveplates_max=2): #default values
         'Initialization'
         self.batch_size=batch_size # number of datasets per batch size
         self.res=res # resolution to use
@@ -517,8 +517,6 @@ class DataGenerator(keras.utils.Sequence):
         self.num_waveplates_min=num_waveplates_min # how many waveplates should we cascade?
         self.num_waveplates_max=num_waveplates_max
         self.maxAng = maxAng # maximum rotation that we apply to the unitary. 
-        self.isCart = isCart # Switch between polar and hybrid cartesian approach 
-        self.isCart2 = isCart2 # Another parameterization consisting of En, 
     
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -526,98 +524,81 @@ class DataGenerator(keras.utils.Sequence):
 
     def __getitem__(self, index):
         'Generate one batch of data'
-        
-        # Generate data
-        X, y = self.__data_generation()
+        if (self.isWaveplates):
+            print('Generating waveplates')
+            X, y = self.__generate_waveplates()
+        else:
+            print('Generating random continuous processes')
+            X, y = self.__generate_continuous()
 
         return X, y
+    
 
-    def __data_generation(self):
-        'Generates data containing batch_size samples'
+    def __generate_waveplates(self):
+        'Generates data containing batch_size samples. Here, we generate processes derived from optical waveplates'
         
         # Initialization
         X = np.empty((self.batch_size,self.res,self.res,5))
-        
-        if(self.isCart):
-            y = np.empty((self.batch_size,self.res,self.res,4))
-        else:
-            y = np.empty((self.batch_size,self.res,self.res,3))
-        
-        # Number of special training samples
-        normal = int((1-self.alpha)*self.batch_size)
-        special = self.batch_size - normal 
+        y = np.empty((self.batch_size,self.res,self.res,3))
     
-        for i in range(0, normal+special):
-            # Generate training samples
-            n_coeff = int(np.random.uniform(low=self.n_coeff_low, high=self.n_coeff_high+1))
-    
-            fac = np.random.uniform(0,0.001)
+        for i in range(0, self.batch_size):
+            n_coeff = int(np.random.uniform(low=self.n_coeff_low, high=self.n_coeff_high+1)) # Values obtained are from n_coeff_low to n_coeff_high
             num_waveplates = np.random.randint(self.num_waveplates_min, high=self.num_waveplates_max+1)
+            a1,a2,a3 = compute_waveplate(num_waveplates,n_coeff,self.res, self.maxAng) # En, theta, phi
             
-            if(self.isWaveplates):
-                if (self.isCart): # Cartesian Coordinates w/ explicit normalization
-                    a1,a2,a3,a4 = compute_waveplate_cart(num_waveplates, n_coeff, self.res, self.maxAng, self.isCart2) #En, nx,ny,nz
-                    if a4[0,0]<0: # make sure the first pixel has nz>0
-                        # Essentially, we shift the gauge from one representation to another
-                        a2= -1*a2
-                        a1=(np.pi-a1)%(np.pi)
-                        a3= -1*a3
-                        a4 = -1*a4
-                        
-                elif (self.isCart2): # Cartesian Coordinates w/o explicit normalization 
-                    a1,a2,a3 = compute_waveplate_cart(num_waveplates,n_coeff,self.res, self.maxAng, self.isCart2) # En, nx, ny
-                else: # Spherical Coordinates 
-                    a1,a2,a3 = compute_waveplate(num_waveplates,n_coeff,self.res, self.maxAng) # En, theta, phi
-                    if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
-                        # Essentially, we shift the gauge from one representation to another
-                        a2=(np.pi-a2)%(np.pi) # theta
-                        a1=(np.pi-a1)%(np.pi) # En 
-                        a3=(np.pi+a3)%(2*np.pi) # phi
-            else:
-                a1=rand_En(n_coeff,self.res,self.maxAng)
-                
-                if (self.isCart):
-                    a2=rand_nx(n_coeff,self.res,self.maxAng)
-                    a3=rand_ny(n_coeff,self.res,self.maxAng)
-                    a4=rand_nz(n_coeff,self.res,self.maxAng)
-                    
-                    if a4[0,0]<0: # make sure the first pixel has nz>0
-                        # Essentially, we shift the gauge from one representation to another
-                        a2= -1*a2
-                        a1=(np.pi-a1)%(np.pi)
-                        a3= -1*a3
-                        a4 = -1*a4
-                    
-                elif(self.isCart2):
-                    a2=rand_nx(n_coeff,self.res,self.maxAng)
-                    a3=rand_ny(n_coeff,self.res,self.maxAng)
-                    
-                else:
-                    if(i > normal):
-                        a2=fac*np.arccos(rand_costheta(n_coeff,self.res, self.maxAng))
-                    else:
-                        a2=np.arccos(rand_costheta(n_coeff,self.res, self.maxAng))
+            '**inversion step**' 
             
-                    if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
-                        # Essentially, we shift the gauge from one representation to another
-                        a2=(np.pi-a2)%(np.pi)
-                        a1=(np.pi-a1)%(np.pi)
-                        a3=(np.pi+a3)%(2*np.pi)
+            if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
+                # Essentially, we shift the gauge from one representation to another
+                a2=(np.pi-a2)  # theta
+
             y[i,:,:,0]=a1
             y[i,:,:,1]=a2
             y[i,:,:,2]=a3
             
-            if (self.isCart):
-                y[i,:,:,3]=a4 # nx
-
-            if(self.isCart):
-                X[i]=full_measure_cart(a1,a2,a3,self.res,self.noise, self.stateNoise,nz=a4)
-            elif(self.isCart2):
-                X[i]=full_measure_cart(a1,a2,a3,self.res,self.noise, self.stateNoise)
-            else:
-                X[i]=full_measure(a1,a2,a3,self.res,self.noise, self.stateNoise)
+            X[i]=full_measure(a1,a2,a3,self.res,self.noise, self.stateNoise)
             
         return X, y
+    
+    
+    def __generate_continuous(self):
+        'Generates data containing batch_size samples. Here, we generate processes derived from continuous processes'
+        
+        # Initialization
+        X = np.empty((self.batch_size,self.res,self.res,5))
+        y = np.empty((self.batch_size,self.res,self.res,3))
+        
+        special_train = int((self.alpha*(self.batch_size)))
+        normal_train = self.batch_size - special_train
+        
+    
+        for ii in range(0, normal_train+special_train):
+            n_coeff = int(np.random.uniform(low=self.n_coeff_low, high=self.n_coeff_high+1))
+            num_waveplates = np.random.randint(self.num_waveplates_min, high=self.num_waveplates_max+1)
+            fac = np.random.uniform(0,0.001)
+            a1=rand_En(n_coeff, self.res, self.maxAng) 
+            
+            if(ii > normal_train):
+                    a2=fac*np.arccos(rand_costheta(n_coeff,self.res, self.maxAng))
+            else:
+                    a2=np.arccos(rand_costheta(n_coeff, self.res, self.maxAng))
+            
+            a3=rand_phi(n_coeff,self.res,self.maxAng) 
+            
+            '**inversion step**' 
+            
+            if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
+                a2=(np.pi-a2)
+
+            y[ii,:,:,0]=a1
+            y[ii,:,:,1]=a2
+            y[ii,:,:,2]=a3
+            
+            X[ii]=full_measure(a1,a2,a3,self.res,self.noise, self.stateNoise)
+        
+        return X, y
+        
+        
 
 # In[ ]:
 

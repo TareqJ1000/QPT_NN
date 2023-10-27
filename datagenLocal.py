@@ -69,8 +69,9 @@ for ii in range(int(normal_train)+int(special_train)):
                 a2=np.arccos(rand_costheta(n_coeff, res, maxAng))
         a3=rand_phi(n_coeff,res,maxAng) 
         
-        if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
-            a2=(np.pi-a2)
+        
+    if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
+        a2=(np.pi-a2)
         
     y_train[ii,:,:,0] = a1
     y_train[ii,:,:,1] = a2
@@ -110,8 +111,8 @@ for ii in range(int(normal_test)+int(special_test)):
                 a2=np.arccos(rand_costheta(n_coeff, res, maxAng))
         a3=rand_phi(n_coeff,res,maxAng) 
     
-        if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
-            a2=(np.pi-a2)
+    if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
+        a2=(np.pi-a2)
         
     y_test[ii,:,:,0] = a1
     y_test[ii,:,:,1] = a2

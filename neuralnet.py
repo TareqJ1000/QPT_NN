@@ -168,9 +168,6 @@ def avg_norm_loss(num_pixs,X_sup, y_sup, model):
 
 # This applies the cyclic MSE to the last index only (which is meant to be phi). En and theta are non periodic, so they do not get the same treatment
 def mse_cyclic(y_true, y_pred): 
-    
-    print(np.shape(y_pred))
-    
     # We assemble the penultimate array elementwise
     part_one = K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0]))
     part_two = K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1]))
@@ -181,11 +178,21 @@ def mse_cyclic(y_true, y_pred):
     return tf.stack([part_one, part_two, part_three], axis=0)
 
 
-def mse_cyclic_original(y_true, y_pred):
-    return K.mean(
-        K.minimum(K.square(y_pred-y_true), 
-                  K.minimum(K.square(y_pred - y_true + 1), K.square(y_pred - y_true - 1))), axis=-1)
+def mse_cyclic_2(y_true, y_pred):
+    # We assemble the penultimate array elementwise
+    part_one = K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0]))
+    part_two = K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1]))
+    part_three = K.mean(
+        K.minimum(K.square(y_pred[:,:,:,2]-y_true[:,:,:,2]), 
+                  K.minimum(K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] + 2*np.pi), K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] - 2*np.pi))))
+   
     
+    loss_array = tf.stack([part_one, part_two, part_three], axis=0)
+    mean_loss = K.mean(loss_array, axis=0)
+    
+    return mean_loss
+    
+
 def loadData(filename, batch_size, forTrain = True): # This supports pickle only for now 
     
     file = open(filename,'rb')
@@ -245,11 +252,11 @@ def train_network(config, model, trainGen, validationGen):
         os.makedirs(model_path)
     
     # Load up training dataset
-    train_dataset = loadData(config['datafile_train'], batchSize)
+    #train_dataset = loadData(config['datafile_train'], batchSize)
     #X_train, y_train = loadData(config['datafile_train'], batchSize, forTrain=False)
 
     # Load up validation dataset 
-    test_dataset = loadData(config['datafile_test'], batchSize)
+    #test_dataset = loadData(config['datafile_test'], batchSize)
     #X_test, y_test = loadData(config['datafile_test'], batchSize, forTrain=False)
     
     # load up supplementary dataset 
@@ -270,11 +277,12 @@ def train_network(config, model, trainGen, validationGen):
     reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor = lr_factor, patience = epochs_to_update, min_lr = min_lr, verbose = 1)
     
     # If GPU is enabled, then we only compute the loss of our network
-    enableGPU = False
     metricList = []
+    #enableGPU = False
     if (enableGPU==False):
         metricList = [avg_fidelity_loss(num_pixs)]
-    model.mynn.compile(loss=mse_cyclic, optimizer=adam_optimizer, metrics=metricList)
+        
+    model.mynn.compile(loss=mse_cyclic_2, optimizer=adam_optimizer, metrics=metricList)
     
     if (config['load_model']):
         print('loading weights from old data...')
@@ -287,8 +295,8 @@ def train_network(config, model, trainGen, validationGen):
     # log_dir = 'logs'
     # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     
-    #history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
-    history = model.mynn.fit(train_dataset, validation_data=test_dataset, batch_size=batchSize, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
+    history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
+    #history = model.mynn.fit(train_dataset, validation_data=test_dataset, batch_size=batchSize, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
     # save trained model at the very end
     model_json = model.mynn.to_json()
     with open(model_path + f"/{model_name}.json", 'w') as json_file:

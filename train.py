@@ -6,7 +6,6 @@ import random
 import math
 
 import tensorflow as tf
-#import tensorflow_addons as tfa
 import matplotlib.pyplot as plt
 
 from tensorflow.python.client import device_lib
@@ -19,10 +18,6 @@ from neuralnet import ff_network, train_network, avg_fidelity_loss
 # Load configuration file
 stream = open(f"configs/train0.yaml", 'r')
 cnfg = yaml.load(stream, Loader=Loader)
-
-# Verify that we are using the GPU 
-#print(device_lib.list_local_devices())
-#print(tf.config.list_physical_devices('GPU'))
 
 seed = random.randint(1000, 9999)
 print(f'seed: {seed}')
