@@ -20,6 +20,7 @@ from tensorflow.keras.layers import AveragePooling2D
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import UpSampling2D
+from tensorflow.keras.layers import Dropout
 
 #from tensorflow_addons.layers import Snake
 #from typeguard import typechecked
@@ -30,7 +31,7 @@ import math
 
 # The encoder and decoder blocks are defined as the HSL - TFP paper
 
-def EncoderBlock(filters, size, layers, middle=False, avgpoolsize=2):
+def EncoderBlock(filters, size, layers, middle=False, avgpoolsize=2, useDropOut = False, dropRate = 0.1):
     initializer = tf.random_normal_initializer(0, 0.02)
 
     conv = Sequential()
@@ -40,12 +41,14 @@ def EncoderBlock(filters, size, layers, middle=False, avgpoolsize=2):
     for i in range(layers):
         conv.add(Conv2D(filters, (size,size), padding='same'))
         conv.add(GroupNormalization())
+        if (useDropOut):
+            conv.add(Dropout(dropRate))
         conv.add(ReLU())
         #conv.add(Snake(name=f'snake_{i}'))
         
     return conv
 
-def DecoderBlock(filters, size, layers, upsamplesize=2):
+def DecoderBlock(filters, size, layers, upsamplesize=2, useDropOut=True, dropRate=0.1):
     
    # initializer = tf.random_normal_initializer(0, 0.02)
     
@@ -55,58 +58,46 @@ def DecoderBlock(filters, size, layers, upsamplesize=2):
     for i in range(layers):
         conv.add(Conv2DTranspose(filters, (size,size), padding='same'))
         conv.add(GroupNormalization())
+        if(useDropOut):
+            conv.add(Dropout(dropRate))
         conv.add(ReLU())
         #conv.add(Snake(name=f'snake_{i}'))
 
-    
     return conv
 
 
-def uNet(num_pixel, nnType, name, kernelSize=3):
+def uNet(num_pixel, nnType, name, kernelSize=3, dropRate = 0.1, layers = 1):
     inputs = Input(shape = [num_pixel, num_pixel, 5])
-    isCart = False
-    isCart2 = False
+    isSingle = False
     
-    if (nnType==2 or nnType==3 or nnType==4): # 16 x 16 
-        down_stack = [EncoderBlock(32,kernelSize,1), EncoderBlock(64,kernelSize,1),  EncoderBlock(128,kernelSize,1), EncoderBlock(256,kernelSize,1) ]
-        middle = EncoderBlock(512,kernelSize,1,middle=True)
-        up_stack = [DecoderBlock(256,kernelSize,1), DecoderBlock(128,kernelSize,1), DecoderBlock(64,kernelSize,1), DecoderBlock(32,kernelSize,1) ]
-        
+    if (nnType==2 or nnType==3): # 16 x 16 
+        down_stack = [EncoderBlock(32,kernelSize,layers), EncoderBlock(64,kernelSize,layers),  EncoderBlock(128,kernelSize,layers), EncoderBlock(256,kernelSize,layers) ]
+        middle = EncoderBlock(512,kernelSize,layers,middle=True)
+        up_stack = [DecoderBlock(256,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(128,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(64,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(32,kernelSize,layers) ]
         if(nnType==3):
-            isCart = True
-        if(nnType==4):
-            isCart2 = True
+            isSingle = True
         
-        
-    if(nnType==5 or nnType==6 or nnType==7): # 32 x 32
-        down_stack = [EncoderBlock(32,kernelSize,1), EncoderBlock(64,kernelSize,1),  EncoderBlock(128,kernelSize,1), EncoderBlock(256,kernelSize,1), EncoderBlock(512,kernelSize,1)]
-        middle = EncoderBlock(1024,kernelSize,1,middle=True)
-        up_stack = [DecoderBlock(512,kernelSize,1), DecoderBlock(256,kernelSize,1), DecoderBlock(128,kernelSize,1), DecoderBlock(64,kernelSize,1), DecoderBlock(32,kernelSize,1)]
-        
+    if(nnType==5 or nnType==6): # 32 x 32
+        down_stack = [EncoderBlock(32,kernelSize,layers), EncoderBlock(64,kernelSize,layers),  EncoderBlock(128,kernelSize,layers), EncoderBlock(256,kernelSize,layers), EncoderBlock(512,kernelSize,layers)]
+        middle = EncoderBlock(1024,kernelSize,layers,middle=True)
+        up_stack = [DecoderBlock(512,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(256,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(128,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(64,kernelSize,layers), DecoderBlock(32,kernelSize,layers)]
         if(nnType==6):
-            isCart = True
-        if(nnType==7):
-            isCart2 = True
+            isSingle = True
         
-    if(nnType==8 or nnType==9 or nnType==10): # 64 x 64
-        down_stack = [EncoderBlock(32,3,1), EncoderBlock(64,3,1),  EncoderBlock(128,3,1), EncoderBlock(256,3,1), EncoderBlock(512,3,1) , EncoderBlock(1024,3,1)  ]
-        middle = EncoderBlock(2048,3,1,middle=True)
-        up_stack = [DecoderBlock(1024,3,1), DecoderBlock(512,3,1), DecoderBlock(256,3,1), DecoderBlock(128,3,1), DecoderBlock(64,3,1), DecoderBlock(32,3,1) ]
-        
-        if(nnType==9):
-            isCart = True
-        if(nnType==10):
-            isCart2 = True
+    if(nnType == 7 or nnType==8): # 64 x 64
+        down_stack = [EncoderBlock(32,3,layers), EncoderBlock(64,3,layers),  EncoderBlock(128,3,layers), EncoderBlock(256,3,layers), EncoderBlock(512,3,layers) , EncoderBlock(1024,3,layers)  ]
+        middle = EncoderBlock(2048,3,layers,middle=True)
+        up_stack = [DecoderBlock(1024,3,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(512,3,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(256,3,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(128,3,layers), DecoderBlock(64,3,layers), DecoderBlock(32,3,layers) ]
+        if(nnType==8):
+            isSingle = True
+
     
-    if(nnType==11 or nnType==12 or nnType==13): #128 x 128
+    if(nnType==9 or nnType==10): #128 x 128
         down_stack = [EncoderBlock(32,kernelSize,1), EncoderBlock(64,kernelSize,1),  EncoderBlock(128,kernelSize,1), EncoderBlock(256,kernelSize,1),  EncoderBlock(512,kernelSize,1), EncoderBlock(1024,kernelSize,1), EncoderBlock(2048,kernelSize,1)]
         middle = EncoderBlock(4096, kernelSize, 1, middle=True)
-        up_stack = [DecoderBlock(2048,kernelSize,1), DecoderBlock(1024,kernelSize,1), DecoderBlock(512,kernelSize,1), DecoderBlock(256,kernelSize,1), DecoderBlock(128,kernelSize,1), DecoderBlock(64,kernelSize,1),  DecoderBlock(32,kernelSize,1)]
-        
-        if(nnType==12):
-            isCart = True
-        if(nnType==13):
-            isCart2 = True
+        up_stack = [DecoderBlock(2048,kernelSize,1, useDropOut=True, dropRate=dropRate), DecoderBlock(1024,kernelSize,1, useDropOut=True, dropRate=dropRate), DecoderBlock(512,kernelSize,1, useDropOut=True, dropRate=dropRate), DecoderBlock(256,kernelSize,1), DecoderBlock(128,kernelSize,1), DecoderBlock(64,kernelSize,1),  DecoderBlock(32,kernelSize,1)]
+        if (nnType==10):
+            isSingle = True
         
     # We now string together the encoder/decoder blocks. This time, we also add skip layers
    
@@ -129,14 +120,10 @@ def uNet(num_pixel, nnType, name, kernelSize=3):
         x = up(x)
         x = tf.keras.layers.Concatenate()([x, skip])
     
-    if(isCart):
-        x = Conv2DTranspose(4, (1,1), padding='same', strides=1, activation='tanh')(x)
-        x = tf.keras.layers.Lambda(lambda z: z*[math.pi, 1, 1, 1])(x)
-    elif(isCart2):
-        x = Conv2DTranspose(3, (1,1), padding='same', strides=1, activation='tanh')(x)
-        x = tf.keras.layers.Lambda(lambda z: z*[math.pi, 1, 1])(x)
+    if(isSingle):
+        x = Conv2DTranspose(1, (1,1), padding='same', strides=1, activation='sigmoid')(x)
     else:
-        x = Conv2DTranspose(3, (1,1), padding='same', strides=1, activation='tanh')(x)
+        x = Conv2DTranspose(3, (1,1), padding='same', strides=1, activation='sigmoid')(x)
         x = tf.keras.layers.Lambda(lambda z: z*[math.pi, math.pi, 2*math.pi])(x)
         
     unet = Model(inputs=inputs, outputs=x, name=name) #  tf.divide(x,normTensors)
@@ -145,7 +132,7 @@ def uNet(num_pixel, nnType, name, kernelSize=3):
     
 # Test out the new function 
 
-#ziggy = uNet(16, 2,'spiffyfaf', kernelSize=3)
+#ziggy = uNet(64, 7,'spiffyfaf', kernelSize=3)
 
 #ziggy.summary()
 

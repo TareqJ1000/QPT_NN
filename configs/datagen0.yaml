@@ -1,0 +1,27 @@
+total: 2.e2
+num_pixs: 64
+n_coeffs_low: 0
+n_coeffs_high: 3
+noise: 0.02
+stateNoise: 0.00
+alpha: 0.10
+alpha2: 0.10
+isWaveplate: False
+max_waveplate: 2
+maxAng: 3
+apply_inversion: True
+
+filename_train: '64by64_200_train_new'
+filename_test: '64by64_200_test_new'
+
+
+
+
+
+
+
+
+
+
+
+

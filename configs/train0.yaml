@@ -1,51 +1,55 @@
 init_lr: '1.e-3'
 min_lr: '1.e-7'
-epochs_to_update: 2
+epochs_to_update: 10
 lr_factor: 0.1
-num_of_epochs: 100
-model_path: 'models/16Net_cycle'
-model_name: '16Net_cycle'
+num_of_epochs: 200
+model_path: 'models/64Net_heavyMetal_test'
+model_name: '64Net_heavyMetal_test'
 load_model: False
-old_model_name: network128_16batch
-nnType: 2
-num_pixs: 16
-batchSize: 16
-kernelSize: 5
+old_model_name: 64Net_oneDim
+nnType: 7
+num_pixs: 64
+batchSize: 4
+kernelSize: 3
+dropRate: 0.2
+layers: 1
+sigma: 0.00
 enableGPU: True
+enableDataGen: False
+shuffle: True
 
-datafile_sup: dataset_16by16_supp_tiny.pkl
+datafile_train: 64by64_25k_train_heavyMetal.pkl
+datafile_test: 64by64_25k_test_heavyMetal.pkl
 
+freezeLayers: False
 freeze_policy_begin: 0
 freeze_policy_end: 19
 
 valSplit: 0.15
 
-params_train: {'batch_size': 16,
+train_params: {'batch_size': 32,
                 'batches_per_epoch': 266,
                 'noise' : 0.01,
                 'stateNoise': 0.00, 
                 'alpha': 0.30, 
-                'res': 16,
-                'n_coeff_high': 2, 
-                'n_coeff_low': 1,
-                'isWaveplates': True,
-                'num_waveplates_min': 2, 
-                'num_waveplates_max': 3,
-                'maxAng': 10}
+                'res': 64,
+                'n_coeff_high': 6, 
+                'n_coeff_low': 0,
+                'isWaveplates': False,
+                'maxAng': 10
+                  }
 
-params_val: {'batch_size': 16,
+val_params: {'batch_size': 32,
               'batches_per_epoch': 94,
               'noise' : 0.01,
               'stateNoise': 0.00,
               'alpha': 0.30,
-              'res': 16,
-              'n_coeff_high': 2, 
-              'n_coeff_low': 1,                
-              'isWaveplates': True,
-              'num_waveplates_min': 2, 
-              'num_waveplates_max': 3,
-              'maxAng': 10}
-
+              'res': 64,
+              'n_coeff_high': 6, 
+              'n_coeff_low': 0,                
+              'isWaveplates': False,
+              'maxAng': 10
+                }
 
 
 

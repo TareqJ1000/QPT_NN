@@ -2,10 +2,7 @@
 
 import os
 import numpy as np
-import yaml
-from yaml import Loader
 import pickle
-from random import choice
 
 import tensorflow as tf
 #import tensorflow_addons as tfa
@@ -13,21 +10,17 @@ import matplotlib.pyplot as plt
 from IPython.display import clear_output
 
 from tensorflow.keras.models import Sequential
-from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers import GaussianDropout
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.layers import Reshape
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras import optimizers
-from tensorflow.keras.losses import BinaryCrossentropy
-from tensorflow.keras.losses import MeanAbsoluteError
 
 from keras import backend as K
 
 # This is code that generates data batch-wise
-from dataGenNew import DataGenerator, fidReconstructTF
+from dataGenNew import DataGenerator, fidReconstructTF, FixedDataGenerator
 from UNetArchitecture import uNet
 import time
 # This is so that we get live feedback on how well our network is learning at each epoch. Credit to this medium article (https://medium.com/geekculture/how-to-plot-model-loss-while-training-in-tensorflow-9fa1a1875a5_)
@@ -102,7 +95,7 @@ class PlotLearning(tf.keras.callbacks.Callback):
     
 
 class ff_network(tf.Module):
-    def __init__ (self, size_of_input, size_of_output, type, name, kernelSize=3): # This initializes the neural network with a certain chosen architecture
+    def __init__ (self, size_of_input, size_of_output, type, name, kernelSize=3, dropRate = 0.1, layers = 1): # This initializes the neural network with a certain chosen architecture
         super(ff_network, self).__init__()
         
         if (type==0): # This is the original architecture of the network as seen in the paper. 
@@ -128,11 +121,11 @@ class ff_network(tf.Module):
                                        Dense(size_of_input*size_of_input*3, activation = 'sigmoid'), Reshape((size_of_input, size_of_input, 3))], name=name)
         
         if (type==2 or type==3 or type==4 or type==5 or type==6 or type==7 or type==8 or type==9 or type==10 or type==11 or type==12 or type==13):
-           self.mynn = uNet(size_of_input, type, name, kernelSize=kernelSize)
+           self.mynn = uNet(size_of_input, type, name, kernelSize=kernelSize, dropRate = dropRate, layers=layers)
            #self.mynn.name = name
            
            
-                                    
+        
     def forward(self, x): # predicted output of ff_network
         res = self.mynn(x)
         return res
@@ -177,7 +170,6 @@ def mse_cyclic(y_true, y_pred):
    
     return tf.stack([part_one, part_two, part_three], axis=0)
 
-
 def mse_cyclic_2(y_true, y_pred):
     # We assemble the penultimate array elementwise
     part_one = K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0]))
@@ -185,12 +177,38 @@ def mse_cyclic_2(y_true, y_pred):
     part_three = K.mean(
         K.minimum(K.square(y_pred[:,:,:,2]-y_true[:,:,:,2]), 
                   K.minimum(K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] + 2*np.pi), K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] - 2*np.pi))))
-   
-    
     loss_array = tf.stack([part_one, part_two, part_three], axis=0)
     mean_loss = K.mean(loss_array, axis=0)
     
     return mean_loss
+
+
+def mse_cyclic_3(y_true, y_pred):
+    # New: let's account for the possibility that the network may instead predict the inverse process
+    a1_inverse = np.pi - y_true[:,:,:,0]
+    a2_inverse = np.pi - y_true[:,:,:,1]
+    a3_inverse = 2*np.pi - y_true[:,:,:,2]
+    # Now, as before, compute the MSE elementwise
+    part_one = K.minimum(K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0])), K.mean(K.square(y_pred[:,:,:,0]-a1_inverse))) 
+    part_two = K.minimum(K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1])), K.mean(K.square(y_pred[:,:,:,1]-a2_inverse))) 
+    part_three = K.minimum(
+        K.mean(K.minimum(K.square(y_pred[:,:,:,2]-y_true[:,:,:,2]), 
+                  K.minimum(K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] + 2*np.pi), K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] - 2*np.pi)))), 
+        K.mean(K.minimum(K.square(y_pred[:,:,:,2]-a3_inverse), 
+                  K.minimum(K.square(y_pred[:,:,:,2] - a3_inverse + 2*np.pi), K.square(y_pred[:,:,:,2] - a3_inverse - 2*np.pi))))
+        )
+    
+    # Compute the average of losses for each array
+    
+    loss_array = tf.stack([part_one, part_two, part_three], axis=0)
+    mean_loss = K.mean(loss_array, axis=0)
+    return mean_loss
+
+
+def mse_cyclic_single(y_true, y_pred): # Here, we now assume that the data is normalized, and we apply on a SINGLE neural network. 
+    return K.mean(
+        K.minimum(K.square(y_pred[:,:,:]-y_true[:,:,:]), 
+                  K.minimum(K.square(y_pred[:,:,:] - y_true[:,:,:] + 1), K.square(y_pred[:,:,:] - y_true[:,:,:] - 1))))
     
 
 def loadData(filename, batch_size, forTrain = True): # This supports pickle only for now 
@@ -213,28 +231,7 @@ def loadData(filename, batch_size, forTrain = True): # This supports pickle only
     else:
         return X,y
 
-
-# Let's create a generator of our data that will load it up batch by batch 
-
-def batch_generator(X, y, batch_size):
-    # Get current resolution 
-    res = len(X[0])
-    # create empty arrays that will hold the batch
-    batch_X = np.zeros((batch_size, res, res, 5))
-    batch_y = np.zeros((batch_size, res, res, 3))
-    
-    indices = np.arange(len(X))
-    
-    while True:
-        for i in range(batch_size):
-            # choose random index in features
-            index=choice(indices)
-            batch_X[i] = X[index]
-            batch_y[i] = y[index]
-            
-            yield batch_X, batch_y
-    
-def train_network(config, model, trainGen, validationGen):
+def train_network(config, model):
     
     init_lr = eval(config['init_lr']) # staring learn rate
     min_lr = eval(config['min_lr']) # lower bound on learn rate
@@ -243,34 +240,25 @@ def train_network(config, model, trainGen, validationGen):
     num_of_epochs = config['num_of_epochs'] # Number of training epochs
     model_path = config['model_path'] # directory to save the model
     batchSize = config['batchSize'] # batch size PER GRADIENT UPDATE 
-    num_pixs = config['num_pixs']
-    model_name = config['model_name']
-    valSplit = config['valSplit']
-    enableGPU = config['enableGPU']
+    num_pixs = config['num_pixs'] # Resolution of images
+    model_name = config['model_name'] # Name of model being trained
+    valSplit = config['valSplit'] # Train:Test split (for fixed Dataset)
+    enableGPU = config['enableGPU'] # Do we compute the average fidelity of our results (GPU disabled)? 
+    
+    enableDataGen = config['enableDataGen'] # Do we use the data generator? 
     
     if not os.path.exists(model_path):
         os.makedirs(model_path)
-    
-    # Load up training dataset
-    #train_dataset = loadData(config['datafile_train'], batchSize)
-    #X_train, y_train = loadData(config['datafile_train'], batchSize, forTrain=False)
+        
+    if not enableDataGen:
+        #Load up training dataset
+        train_dataset = loadData(config['datafile_train'], batchSize)
+        #X_train, y_train = loadData(config['datafile_train'], batchSize, forTrain=False)
 
-    # Load up validation dataset 
-    #test_dataset = loadData(config['datafile_test'], batchSize)
-    #X_test, y_test = loadData(config['datafile_test'], batchSize, forTrain=False)
+        # Load up validation dataset 
+        test_dataset = loadData(config['datafile_test'], batchSize)
+        #X_test, y_test = loadData(config['datafile_test'], batchSize, forTrain=False)
     
-    # load up supplementary dataset 
-    X_sup, y_sup = loadData(config['datafile_sup'], batchSize, forTrain=False)
-
-    # Create generators for the training and testing dataset 
-    #gen_train = batch_generator(X_train, y_train, batchSize)
-    #gen_test = batch_generator(X_test, y_test, batchSize)
-    
-    # Specify the number of steps per epoch
-    
-    #step_train = int(len(X_train)/batchSize)
-    #step_test = int(len(X_test)/batchSize)
-
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath = model_path, save_weights_only=False, verbose=1) # callbacks 
     
     adam_optimizer = optimizers.Adam(learning_rate=init_lr)
@@ -282,7 +270,7 @@ def train_network(config, model, trainGen, validationGen):
     if (enableGPU==False):
         metricList = [avg_fidelity_loss(num_pixs)]
         
-    model.mynn.compile(loss=mse_cyclic_2, optimizer=adam_optimizer, metrics=metricList)
+    model.mynn.compile(loss=mse_cyclic_3, optimizer=adam_optimizer, metrics=metricList)
     
     if (config['load_model']):
         print('loading weights from old data...')
@@ -295,8 +283,28 @@ def train_network(config, model, trainGen, validationGen):
     # log_dir = 'logs'
     # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     
-    history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
-    #history = model.mynn.fit(train_dataset, validation_data=test_dataset, batch_size=batchSize, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
+    if not enableDataGen:
+        #Load up training dataset
+        # train_dataset = loadData(config['datafile_train'], batchSize)
+        X_train, y_train = loadData(config['datafile_train'], batchSize, forTrain=False)
+        # Load up validation dataset 
+        # test_dataset = loadData(config['datafile_test'], batchSize)
+        X_test, y_test = loadData(config['datafile_test'], batchSize, forTrain=False)
+        # Create the FixedDatagenerator for each training and test object
+        
+        shuffle = config['shuffle']
+        sigma = config['sigma']
+        
+        trainGen = FixedDataGenerator(X_train, y_train, batch_size=batchSize, shuffle=shuffle, sigma=sigma)
+        validationGen = FixedDataGenerator(X_test, y_test, batch_size=batchSize, shuffle=shuffle, sigma=sigma)
+        
+        history = model.mynn.fit(trainGen, validation_data=validationGen, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
+    else:
+        trainGen = DataGenerator(**config['train_params'])
+        validationGen = DataGenerator(**config['val_params'])
+    
+        history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
+
     # save trained model at the very end
     model_json = model.mynn.to_json()
     with open(model_path + f"/{model_name}.json", 'w') as json_file:

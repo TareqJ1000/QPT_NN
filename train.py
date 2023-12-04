@@ -27,30 +27,27 @@ cnfg['model_name'] +=  f"_{seed}"
 nntype = cnfg['nnType']
 
 kernelSize = cnfg['kernelSize']
+dropRate = cnfg['dropRate']
+layers = cnfg['layers']
+
+freezeLayers = cnfg['freezeLayers']
 
 # Initializes the model for training 
-model = ff_network(cnfg['num_pixs'],3,nntype,cnfg['model_name'], kernelSize=kernelSize)
+model = ff_network(cnfg['num_pixs'],3,nntype,cnfg['model_name'], kernelSize=kernelSize, dropRate=dropRate, layers=layers)
 
-# Let's try performing transfer learning!
+# Let's try performing transfer learning! (If applicable)
 
-# Freeze all layers
-for layer in model.mynn.layers:
-    layer.trainable = False
-
-freeze_policy_begin = cnfg['freeze_policy_begin']
-freeze_policy_end = cnfg['freeze_policy_end']
-
-# Unfreeze a few ~ approx middle of dataset 
-for ii in range(freeze_policy_begin, freeze_policy_end):
-    model.mynn.layers[ii].trainable = True
+if (freezeLayers):
+    # Freeze all layers
+    for layer in model.mynn.layers:
+        layer.trainable = False
     
-# Initialize training and validation set 
-trainVar = cnfg['params_train']
-valVar = cnfg['params_val']
-
-# Initialize training and validation set 
-trainGen = DataGenerator(**trainVar)
-validationGen = DataGenerator(**valVar)
+    freeze_policy_begin = cnfg['freeze_policy_begin']
+    freeze_policy_end = cnfg['freeze_policy_end']
+    
+    # Unfreeze a few ~ approx middle of dataset 
+    for ii in range(freeze_policy_begin, freeze_policy_end):
+        model.mynn.layers[ii].trainable = True
 
 # With everything in place, let us train the model 
-train_network(cnfg, model, trainGen, validationGen)
+train_network(cnfg, model)

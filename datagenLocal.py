@@ -3,6 +3,7 @@
 import argparse
 import tensorflow as tf
 from dataGenNew import rand_En, rand_costheta, rand_phi, full_measure, compute_waveplate
+from dataGenNew import rand_nx, rand_ny, rand_nz
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -13,9 +14,17 @@ from yaml import Loader
 import random
 import math
 
-# Load yaml file 
 
-stream = open(f"configs/datagen1.yaml", 'r')
+# parse through slurm array (for use w/ bash script. You can set shift to be a random integer for the purposes of testing locally)
+
+parser=argparse.ArgumentParser(description='test')
+parser.add_argument('--ii', dest='ii', type=int,
+    default=None, help='')
+args = parser.parse_args()
+shift = args.ii
+
+# Load configuration file
+stream = open(f"configs/datagen{shift}.yaml", 'r')
 cnfg = yaml.load(stream, Loader=Loader)
 
 # Define some initial parameters for the gneration process
@@ -46,6 +55,7 @@ normal_test = (1-alpha2)*test
 
 filename_train = cnfg['filename_train']
 filename_test = cnfg['filename_test']
+applyInverse = cnfg['apply_inversion']
 
 '''
 # Now to generate training examples
@@ -53,26 +63,48 @@ filename_test = cnfg['filename_test']
 
 X_train = np.empty((int(train), res, res, 5))
 y_train = np.empty((int(train), res, res, 3))
-    
+
 for ii in range(int(normal_train)+int(special_train)):
-    n_coeff= np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high'])
-    fac = np.random.uniform(0,0.001)
     num_waveplates = np.random.randint(low=1, high=max_waveplates+1)
-    
+    fac = np.random.uniform(0, 0.00001)
     if(isWaveplate):
-        a1, a2, a3 = compute_waveplate(num_waveplates, n_coeff, res, maxAng)
+        a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
     else:
-        a1=rand_En(n_coeff,res, maxAng)    
-        if(ii > normal_train):
-                a2=fac*np.arccos(rand_costheta(n_coeff,res, maxAng))
-        else:
-                a2=np.arccos(rand_costheta(n_coeff, res, maxAng))
-        a3=rand_phi(n_coeff,res,maxAng) 
+        a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),res, maxAng) 
         
+        #obtain cartesian coordinates
+        
+        nx = rand_nx(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        ny = rand_ny(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        nz = rand_nz(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+    
+        # First, normalize cartesian coordinates 
+        
+        norm = np.sqrt(nx**2 + ny**2 + nz**2)
+        nx = nx/norm 
+        ny = ny/norm 
+        nz = nz/norm 
+
+        #convert to spherical coordinates
+        if(ii > normal_train):
+                a2=fac*np.arccos(nz)
+        else:
+                a2=np.arccos(nz)
+        
+        
+        a3 = np.arctan2(ny, nx)  
+        
+        for i in range(res):
+            for j in range(res):
+                if a3[i,j] < 0:
+                    a3[i,j] += 2*np.pi
         
     if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
         a2=(np.pi-a2)
-        
+        if(applyInverse):
+            a1 = (np.pi - a1)
+            a3 = (2*np.pi - a3)
+
     y_train[ii,:,:,0] = a1
     y_train[ii,:,:,1] = a2
     y_train[ii,:,:,2] = a3
@@ -97,23 +129,44 @@ y_test = np.empty((int(test), res, res, 3))
 # First, generate normal examples
     
 for ii in range(int(normal_test)+int(special_test)):
-    n_coeff= np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high'])
     fac = np.random.uniform(0,0.001)
     num_waveplates = np.random.randint(low=1, high=max_waveplates+1)
     
     if(isWaveplate):
-        a1, a2, a3 = compute_waveplate(num_waveplates, n_coeff, res, maxAng)
+        a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
     else:
-        a1=rand_En(n_coeff,res, maxAng)    
+        a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']) ,res, maxAng) 
+        #obtain cartesian coordinates
+        nx = rand_nx(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        ny = rand_ny(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        nz = rand_nz(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        
+        # First, normalize cartesian coordinates 
+        
+        norm = np.sqrt(nx**2 + ny**2 + nz**2)
+        nx = nx/norm 
+        ny = ny/norm 
+        nz = nz/norm 
+        
+        #convert to spherical coordinates
         if(ii > normal_test):
-                a2=fac*np.arccos(rand_costheta(n_coeff,res, maxAng))
+                a2=fac*np.arccos(nz)
         else:
-                a2=np.arccos(rand_costheta(n_coeff, res, maxAng))
-        a3=rand_phi(n_coeff,res,maxAng) 
-    
+                a2=np.arccos(nz)
+                
+        a3 = np.arctan2(ny, nx)
+        for i in range(res):
+            for j in range(res):
+                if a3[i,j] < 0:
+                    a3[i,j] += 2*np.pi
+                    
     if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
         a2=(np.pi-a2)
+        if(applyInverse):
+            a1 = (np.pi - a1)
+            a3 = (2*np.pi - a3)
         
+
     y_test[ii,:,:,0] = a1
     y_test[ii,:,:,1] = a2
     y_test[ii,:,:,2] = a3
@@ -127,4 +180,7 @@ for ii in range(int(normal_test)+int(special_test)):
 
 with open(filename_test + '.pkl', 'wb') as f:
     pickle.dump([X_test, y_test], f)
+    
+    
+
              
