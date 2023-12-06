@@ -452,7 +452,7 @@ def measure(in_pol,out_pol,evo_op,noise): #polarimetric measurement with noise
     
     result = 0
     
-    if(abs(abs(mel)**2 + pixNoise)>1):
+    if(abs(mel)**2 + pixNoise>1) or (abs(mel)**2 + pixNoise < 0):
         result = abs(mel)**2 - pixNoise 
     else:
         result = abs(mel)**2 + pixNoise 
