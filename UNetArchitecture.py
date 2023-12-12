@@ -22,6 +22,17 @@ from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import UpSampling2D
 from tensorflow.keras.layers import Dropout
 
+
+# 3D Convolutional layers 
+from tensorflow.keras.layers import Conv3D
+from tensorflow.keras.layers import Conv3DTranspose
+from tensorflow.keras.layers import AveragePooling3D
+from tensorflow.keras.layers import MaxPooling3D
+from tensorflow.keras.layers import UpSampling3D
+
+
+
+
 #from tensorflow_addons.layers import Snake
 #from typeguard import typechecked
 #from tensorflow_addons.activations.snake import snake
@@ -31,15 +42,21 @@ import math
 
 # The encoder and decoder blocks are defined as the HSL - TFP paper
 
-def EncoderBlock(filters, size, layers, middle=False, avgpoolsize=2, useDropOut = False, dropRate = 0.1):
+def EncoderBlock(filters, size, layers, middle=False, avgpoolsize=2, useDropOut = False, dropRate = 0.1, enable3D = False):
     initializer = tf.random_normal_initializer(0, 0.02)
 
     conv = Sequential()
     if (middle):
-        conv.add(AveragePooling2D(pool_size=(avgpoolsize,avgpoolsize)))
-        
+        if(enable3D):
+            conv.add(AveragePooling3D(pool_size=(avgpoolsize,avgpoolsize, avgpoolsize)))
+        else:
+            conv.add(AveragePooling2D(pool_size=(avgpoolsize,avgpoolsize)))
+            
     for i in range(layers):
-        conv.add(Conv2D(filters, (size,size), padding='same'))
+        if(enable3D):
+            conv.add(Conv3D(filters, (size,size,size), padding='same'))
+        else:
+            conv.add(Conv2D(filters, (size,size), padding='same'))
         conv.add(GroupNormalization())
         if (useDropOut):
             conv.add(Dropout(dropRate))
@@ -48,15 +65,25 @@ def EncoderBlock(filters, size, layers, middle=False, avgpoolsize=2, useDropOut 
         
     return conv
 
-def DecoderBlock(filters, size, layers, upsamplesize=2, useDropOut=True, dropRate=0.1):
+
+
+
+def DecoderBlock(filters, size, layers, upsamplesize=2, useDropOut=True, dropRate=0.1, enable3D=False):
     
    # initializer = tf.random_normal_initializer(0, 0.02)
     
     conv = Sequential()
-    conv.add(UpSampling2D(size=(upsamplesize, upsamplesize)))
     
+    if(enable3D):
+        conv.add(UpSampling3D(size=(upsamplesize, upsamplesize, upsamplesize)))
+    else:
+        conv.add(UpSampling2D(size=(upsamplesize, upsamplesize)))
+        
     for i in range(layers):
-        conv.add(Conv2DTranspose(filters, (size,size), padding='same'))
+        if(enable3D):
+            conv.add(Conv3DTranspose(filters, (size,size,size), padding='same'))
+        else:
+            conv.add(Conv2DTranspose(filters, (size,size), padding='same'))
         conv.add(GroupNormalization())
         if(useDropOut):
             conv.add(Dropout(dropRate))
@@ -65,39 +92,32 @@ def DecoderBlock(filters, size, layers, upsamplesize=2, useDropOut=True, dropRat
 
     return conv
 
-
 def uNet(num_pixel, nnType, name, kernelSize=3, dropRate = 0.1, layers = 1):
     inputs = Input(shape = [num_pixel, num_pixel, 5])
-    isSingle = False
+    is3D = False
     
     if (nnType==2 or nnType==3): # 16 x 16 
         down_stack = [EncoderBlock(32,kernelSize,layers), EncoderBlock(64,kernelSize,layers),  EncoderBlock(128,kernelSize,layers), EncoderBlock(256,kernelSize,layers) ]
         middle = EncoderBlock(512,kernelSize,layers,middle=True)
         up_stack = [DecoderBlock(256,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(128,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(64,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(32,kernelSize,layers) ]
-        if(nnType==3):
-            isSingle = True
         
     if(nnType==5 or nnType==6): # 32 x 32
-        down_stack = [EncoderBlock(32,kernelSize,layers), EncoderBlock(64,kernelSize,layers),  EncoderBlock(128,kernelSize,layers), EncoderBlock(256,kernelSize,layers), EncoderBlock(512,kernelSize,layers)]
-        middle = EncoderBlock(1024,kernelSize,layers,middle=True)
-        up_stack = [DecoderBlock(512,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(256,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(128,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(64,kernelSize,layers), DecoderBlock(32,kernelSize,layers)]
-        if(nnType==6):
-            isSingle = True
+        down_stack = [EncoderBlock(32,kernelSize,layers, enable3D=is3D), EncoderBlock(64,kernelSize,layers,  enable3D=is3D),  EncoderBlock(128,kernelSize,layers,  enable3D=is3D), EncoderBlock(256,kernelSize,layers,  enable3D=is3D), EncoderBlock(512,kernelSize,layers,  enable3D=is3D)]
+        middle = EncoderBlock(1024,kernelSize,layers,middle=True,  enable3D=is3D)
+        up_stack = [DecoderBlock(512,kernelSize,layers, useDropOut=True, dropRate=dropRate,  enable3D=is3D), DecoderBlock(256,kernelSize,layers, useDropOut=True, dropRate=dropRate,  enable3D=is3D), DecoderBlock(128,kernelSize,layers, useDropOut=True, dropRate=dropRate,  enable3D=is3D), DecoderBlock(64,kernelSize,layers,  enable3D=is3D), DecoderBlock(32,kernelSize,layers,  enable3D=is3D)]
+
         
     if(nnType == 7 or nnType==8): # 64 x 64
-        down_stack = [EncoderBlock(32,3,layers), EncoderBlock(64,3,layers),  EncoderBlock(128,3,layers), EncoderBlock(256,3,layers), EncoderBlock(512,3,layers) , EncoderBlock(1024,3,layers)  ]
-        middle = EncoderBlock(2048,3,layers,middle=True)
-        up_stack = [DecoderBlock(1024,3,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(512,3,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(256,3,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(128,3,layers), DecoderBlock(64,3,layers), DecoderBlock(32,3,layers) ]
-        if(nnType==8):
-            isSingle = True
+        down_stack = [EncoderBlock(32,kernelSize,layers), EncoderBlock(64,kernelSize,layers),  EncoderBlock(128,kernelSize,layers), EncoderBlock(256,kernelSize,layers), EncoderBlock(512,kernelSize,layers) , EncoderBlock(1024,kernelSize,layers)  ]
+        middle = EncoderBlock(2048,kernelSize,layers,middle=True)
+        up_stack = [DecoderBlock(1024,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(512,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(256,kernelSize,layers, useDropOut=True, dropRate=dropRate), DecoderBlock(128,kernelSize,layers), DecoderBlock(64,kernelSize,layers), DecoderBlock(32,kernelSize,layers) ]
 
     
     if(nnType==9 or nnType==10): #128 x 128
         down_stack = [EncoderBlock(32,kernelSize,1), EncoderBlock(64,kernelSize,1),  EncoderBlock(128,kernelSize,1), EncoderBlock(256,kernelSize,1),  EncoderBlock(512,kernelSize,1), EncoderBlock(1024,kernelSize,1), EncoderBlock(2048,kernelSize,1)]
         middle = EncoderBlock(4096, kernelSize, 1, middle=True)
         up_stack = [DecoderBlock(2048,kernelSize,1, useDropOut=True, dropRate=dropRate), DecoderBlock(1024,kernelSize,1, useDropOut=True, dropRate=dropRate), DecoderBlock(512,kernelSize,1, useDropOut=True, dropRate=dropRate), DecoderBlock(256,kernelSize,1), DecoderBlock(128,kernelSize,1), DecoderBlock(64,kernelSize,1),  DecoderBlock(32,kernelSize,1)]
-        if (nnType==10):
-            isSingle = True
+
         
     # We now string together the encoder/decoder blocks. This time, we also add skip layers
    
@@ -109,7 +129,10 @@ def uNet(num_pixel, nnType, name, kernelSize=3, dropRate = 0.1, layers = 1):
         x = down_stack[ii](x)
         skips.append(x)
         if (ii < len(down_stack)-1):
-            x = MaxPooling2D(pool_size=(2,2))(x)
+            if(is3D):
+                x = MaxPooling3D(pool_size=(2,2,2))(x)
+            else:
+                x = MaxPooling2D(pool_size=(2,2))(x)
         
     x = middle(x)
     
@@ -120,10 +143,12 @@ def uNet(num_pixel, nnType, name, kernelSize=3, dropRate = 0.1, layers = 1):
         x = up(x)
         x = tf.keras.layers.Concatenate()([x, skip])
     
-    if(isSingle):
-        x = Conv2DTranspose(1, (1,1), padding='same', strides=1, activation='sigmoid')(x)
+    if (is3D):
+        x = Conv3DTranspose(3, (1,1,1), padding='same', strides=1, activation='sigmoid')(x)
     else:
         x = Conv2DTranspose(3, (1,1), padding='same', strides=1, activation='sigmoid')(x)
+        
+    if(nnType==5 or nnType==7):
         x = tf.keras.layers.Lambda(lambda z: z*[math.pi, math.pi, 2*math.pi])(x)
         
     unet = Model(inputs=inputs, outputs=x, name=name) #  tf.divide(x,normTensors)
@@ -132,57 +157,13 @@ def uNet(num_pixel, nnType, name, kernelSize=3, dropRate = 0.1, layers = 1):
     
 # Test out the new function 
 
-#ziggy = uNet(64, 7,'spiffyfaf', kernelSize=3)
+#ziggy = uNet(64, 7, 'spiffyfaf', kernelSize=3)
 
 #ziggy.summary()
 
 
 
 
-###### Depreceated Functions ####
-
-# This is a slight modification of the Snake layer implemented in the tensorflow_addons package
-
-
-'''
-class Snake(tf.keras.layers.Layer):
-    """Snake layer to learn periodic functions with the trainable `frequency` scalar.
-
-    See [Neural Networks Fail to Learn Periodic Functions and How to Fix It](https://arxiv.org/abs/2006.08195).
-
-    Args:
-        frequency_initializer: Initializer for the `frequency` scalar.
-    """
-
-    @typechecked
-    def __init__(self, frequency_initializer: types.Initializer = "ones", **kwargs):
-        super().__init__(**kwargs)
-        self.frequency_initializer = tf.keras.initializers.get(frequency_initializer)
-        self.frequency = self.add_weight(name=self.name,
-            initializer=frequency_initializer, trainable=True
-        )
-
-    def call(self, inputs):
-        return snake(inputs, self.frequency)
-
-    def get_config(self):
-        config = {
-            "frequency_initializer": tf.keras.initializers.serialize(
-                self.frequency_initializer
-            ),
-        }
-        base_config = super().get_config()
-        
-        return {**base_config, **config}
-
-'''
-
-
-
-    
-
-        
-            
         
         
 

@@ -71,40 +71,45 @@ for ii in range(int(normal_train)+int(special_train)):
         a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
     else:
         a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),res, maxAng) 
-        
         #obtain cartesian coordinates
-        
         nx = rand_nx(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
         ny = rand_ny(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
         nz = rand_nz(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
-    
+
         # First, normalize cartesian coordinates 
         
         norm = np.sqrt(nx**2 + ny**2 + nz**2)
         nx = nx/norm 
         ny = ny/norm 
         nz = nz/norm 
+        
+        nz = np.zeros((res, res)) + 0.01
 
-        #convert to spherical coordinates
-        if(ii > normal_train):
+        # Perform the inversion
+        
+        if nz[0,0] < 0:
+            nz = -nz
+            if(applyInverse):
+                a1 = (np.pi - a1)
+                nx = -nx
+                ny = -ny
+                
+        # If nz is not small (depending on the noise), or if nx is positive, then we break out of the loop
+        
+        if (nz[0,0] < noise and nz[0,0] > -noise) and nx[0,0] < 0:
+            nx = -nx 
+
+        # Now, convert to spherical coordinates
+        
+        if (ii > normal_train):
                 a2=fac*np.arccos(nz)
         else:
                 a2=np.arccos(nz)
         
-        
         a3 = np.arctan2(ny, nx)  
-        
-        for i in range(res):
-            for j in range(res):
-                if a3[i,j] < 0:
-                    a3[i,j] += 2*np.pi
-        
-    if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
-        a2=(np.pi-a2)
-        if(applyInverse):
-            a1 = (np.pi - a1)
-            a3 = (2*np.pi - a3)
-
+    
+    # In the special case where a2 is very near pi/2, perform another inversion s.t. process is confined to one quarter of the bloch sphere
+    
     y_train[ii,:,:,0] = a1
     y_train[ii,:,:,1] = a2
     y_train[ii,:,:,2] = a3
@@ -135,37 +140,47 @@ for ii in range(int(normal_test)+int(special_test)):
     if(isWaveplate):
         a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
     else:
-        a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']) ,res, maxAng) 
+        
+        a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),res, maxAng) 
         #obtain cartesian coordinates
         nx = rand_nx(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
         ny = rand_ny(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
         nz = rand_nz(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
-        
+
         # First, normalize cartesian coordinates 
         
         norm = np.sqrt(nx**2 + ny**2 + nz**2)
         nx = nx/norm 
         ny = ny/norm 
         nz = nz/norm 
+
+        # Perform the inversion
         
+        if nz[0,0] < 0:
+            nz = -nz
+            if(applyInverse):
+                a1 = (np.pi - a1)
+                nx = -nx
+                ny = -ny
+                
+        # If nz is not small (depending on the noise), or if nx is positive, then we break out of the loop
+        
+        if (nz[0,0] < noise and nz[0,0] > -noise) and nx[0,0] < 0:
+            nx = -nx 
+            
         #convert to spherical coordinates
+        
         if(ii > normal_test):
                 a2=fac*np.arccos(nz)
         else:
                 a2=np.arccos(nz)
                 
         a3 = np.arctan2(ny, nx)
+        
         for i in range(res):
             for j in range(res):
                 if a3[i,j] < 0:
                     a3[i,j] += 2*np.pi
-                    
-    if a2[0,0]>np.pi/2: # make sure the first pixel has nz>0
-        a2=(np.pi-a2)
-        if(applyInverse):
-            a1 = (np.pi - a1)
-            a3 = (2*np.pi - a3)
-        
 
     y_test[ii,:,:,0] = a1
     y_test[ii,:,:,1] = a2

@@ -204,6 +204,17 @@ def mse_cyclic_3(y_true, y_pred):
     mean_loss = K.mean(loss_array, axis=0)
     return mean_loss
 
+def mse_cyclic_4(y_true, y_pred):
+    # We assemble the penultimate array elementwise
+    part_one = K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0]))
+    part_two = K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1]))
+    part_three = K.mean(
+        K.minimum(K.square(y_pred[:,:,:,2]-y_true[:,:,:,2]), 
+                  K.minimum(K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] + 1), K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] - 1))))
+    loss_array = tf.stack([part_one, part_two, part_three], axis=0)
+    mean_loss = K.mean(loss_array, axis=0)
+    
+    return mean_loss
 
 def mse_cyclic_single(y_true, y_pred): # Here, we now assume that the data is normalized, and we apply on a SINGLE neural network. 
     return K.mean(

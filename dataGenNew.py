@@ -194,7 +194,7 @@ def rand_ny(n_coeff_x, n_coeff_y, res, maxAng): #random ny
 
     X, Y = np.meshgrid(x, y)
     
-    return generate_random_function(X, Y,-1, 1, n_coeff_x, n_coeff_y, ang, minusOne = True)
+    return generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y, ang, minusOne = True)
 
 def rand_nz(n_coeff_x, n_coeff_y, res, maxAng): # rand nz
 
