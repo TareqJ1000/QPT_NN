@@ -541,7 +541,7 @@ def full_measure_cart(En,nx,ny,res,noise,stateNoise, nz=None): # Same function, 
     
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, noise=0.01,stateNoise=0.01, n_coeff=10, res=128, batch_size=100, batches_per_epoch=100, alpha=0.3, n_coeff_low=1, n_coeff_high=15, maxAng=math.radians(10), isWaveplates = True, num_waveplates=10, num_waveplates_min=1, num_waveplates_max=2, unitaryParam = 3, isSingle=False): #default values
+    def __init__(self, noise=0.01,stateNoise=0.01, n_coeff=10, res=128, batch_size=100, batches_per_epoch=100, alpha=0.3, n_coeff_low=1, n_coeff_high=15, maxAng=math.radians(10), isWaveplates = True, num_waveplates=10, num_waveplates_min=1, num_waveplates_max=2, unitaryParam = 3, isSingle=False, applyInverse = False): #default values
         'Initialization'
         self.batch_size=batch_size # number of datasets per batch size
         self.res=res # resolution to use
@@ -557,6 +557,7 @@ class DataGenerator(keras.utils.Sequence):
         self.maxAng = maxAng # maximum rotation that we apply to the unitary. 
         self.isSingle = isSingle # Do we consider training with only a single output? 
         self.unitaryParam = unitaryParam # for single output training
+        self.applyInverse = applyInverse
     
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -627,6 +628,20 @@ class DataGenerator(keras.utils.Sequence):
             ny = ny/norm 
             nz = nz/norm 
             
+            # Perform the inversion over cartesian coordinates 
+            
+            if nz[0,0] < 0:
+                nz = -nz
+                if(self.applyInverse):
+                    a1 = (np.pi - a1)
+                    nx = -nx
+                    ny = -ny
+                    
+            # If nz is not small (depending on the noise), or if nx is positive, then we break out of the loop
+            
+            if (nz[0,0] < self.noise and nz[0,0] > -self.noise) and nx[0,0] < 0:
+                nx = -nx 
+                
             # convert to spherical coordinates
             
             if(ii > normal_train):

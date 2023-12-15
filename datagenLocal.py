@@ -66,7 +66,7 @@ y_train = np.empty((int(train), res, res, 3))
 
 for ii in range(int(normal_train)+int(special_train)):
     num_waveplates = np.random.randint(low=1, high=max_waveplates+1)
-    fac = np.random.uniform(0, 0.00001)
+    fac = np.random.uniform(0, 0.0001)
     if(isWaveplate):
         a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
     else:
@@ -75,15 +75,18 @@ for ii in range(int(normal_train)+int(special_train)):
         nx = rand_nx(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
         ny = rand_ny(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
         nz = rand_nz(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
-
+        
+        if (ii > normal_train):
+                a2=fac*nz
+        else:
+                a2=nz
+        
         # First, normalize cartesian coordinates 
         
         norm = np.sqrt(nx**2 + ny**2 + nz**2)
         nx = nx/norm 
         ny = ny/norm 
         nz = nz/norm 
-        
-        nz = np.zeros((res, res)) + 0.01
 
         # Perform the inversion
         
@@ -101,11 +104,8 @@ for ii in range(int(normal_train)+int(special_train)):
 
         # Now, convert to spherical coordinates
         
-        if (ii > normal_train):
-                a2=fac*np.arccos(nz)
-        else:
-                a2=np.arccos(nz)
         
+        a2 = np.arccos(nz)
         a3 = np.arctan2(ny, nx)  
     
     # In the special case where a2 is very near pi/2, perform another inversion s.t. process is confined to one quarter of the bloch sphere
@@ -153,6 +153,11 @@ for ii in range(int(normal_test)+int(special_test)):
         nx = nx/norm 
         ny = ny/norm 
         nz = nz/norm 
+    
+        if(ii > normal_test):
+                a2=fac*nz
+        else:
+                a2=nz
 
         # Perform the inversion
         
@@ -169,12 +174,7 @@ for ii in range(int(normal_test)+int(special_test)):
             nx = -nx 
             
         #convert to spherical coordinates
-        
-        if(ii > normal_test):
-                a2=fac*np.arccos(nz)
-        else:
-                a2=np.arccos(nz)
-                
+        a2 = np.arccos(nz)
         a3 = np.arctan2(ny, nx)
         
         for i in range(res):
