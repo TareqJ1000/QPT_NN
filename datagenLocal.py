@@ -67,8 +67,24 @@ y_train = np.empty((int(train), res, res, 3))
 for ii in range(int(normal_train)+int(special_train)):
     num_waveplates = np.random.randint(low=1, high=max_waveplates+1)
     fac = np.random.uniform(0, 0.0001)
+    
     if(isWaveplate):
         a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        
+        if a2[0,0] > np.pi/2:
+            a2 = np.pi - a2
+            if (applyInverse):
+                a1 = np.pi - a1
+                a3 = 2*np.pi - a3
+        
+        
+        if (a2[0,0] < (np.pi/2 + noise)  and a2[0,0] > (np.pi/2 - noise)) and a3[0,0] > np.pi:
+            a3 = 2*np.pi - a3
+            
+        
+        
+            
+        
     else:
         a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),res, maxAng) 
         #obtain cartesian coordinates
@@ -138,7 +154,21 @@ for ii in range(int(normal_test)+int(special_test)):
     num_waveplates = np.random.randint(low=1, high=max_waveplates+1)
     
     if(isWaveplate):
+        
         a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+       
+        # Apply inversion over theta
+        if a2[0,0] > np.pi/2:
+            a2 = np.pi - a2
+            if (applyInverse):
+                a1 = np.pi - a1
+                a3 = 2*np.pi - a3
+        
+        # Invert phi if first pixel is greater than pi. 
+        if (a2[0,0] < (np.pi/2 + noise)  and a2[0,0] > (np.pi/2 - noise)) and a3[0,0] > np.pi:
+            a3 = 2*np.pi - a3
+                
+    
     else:
         
         a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),res, maxAng) 

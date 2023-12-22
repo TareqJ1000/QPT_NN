@@ -261,17 +261,17 @@ def waveGen(delta, theta):
 def rand_optic(n_coeff_x, n_coeff_y, res, maxAng):
     ang = random.uniform(0,maxAng)
     
-    x_min = random.uniform(0,res)
-    x_max = x_min + random.uniform(0,res)
-    y_min = random.uniform(0,res)
-    y_max = y_min + random.uniform(0,res)
+    x_min = random.uniform(0,1)
+    x_max = x_min + random.uniform(0.5,1)
+    y_min = random.uniform(0,1)
+    y_max = y_min + random.uniform(0.5,1)
             
     x = np.linspace(x_min, x_max, res)
     y = np.linspace(y_min, y_max, res)
 
     X, Y = np.meshgrid(x, y)
     
-    return np.pi*(generate_random_function(X,Y,0,1,n_coeff_x, n_coeff_y, ang))
+    return np.pi*generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y, ang)
     
 # Cascade multiple waveplates together, thereby creating our unitary matrix
 
@@ -329,7 +329,7 @@ def retrieve_phi(unitary,En):
 
 # Complete function which generates the unitary for one or more waveplates and returns En, theta, phi
 
-def compute_waveplate_cart(num_waveplate, n_coeff, res, maxAng, isCart2):
+def compute_waveplate_cart(num_waveplate, n_coeff, res, maxAng, isCart2=False):
     
     En = np.zeros([res, res])
     nx = np.zeros([res,res])
@@ -393,7 +393,6 @@ def compute_waveplate(num_waveplate, n_coeff_x, n_coeff_y, res, maxAng):
                 
             En[ind1,ind2] = En_pix
             thetapol[ind1,ind2] = thetapol_pix
-            
             phi[ind1,ind2] = phi_pix
     
     return En, thetapol, phi
@@ -477,6 +476,16 @@ def perturbState(state, randNoise):
     normConst = np.sqrt(np.sum(np.abs(newState)**2))
     return newState/normConst
 
+def rotateState(state_name):
+    
+    if (state_name == 'L'):
+        newState = h
+    if (state_name == 'H'):
+        newState = l
+    
+    return newState
+
+
 def pixel_measure(En,th,phi,noise, stateNoise):
     
     # Let's introduce slight perturbations onto the states that we choose to measure. 
@@ -497,6 +506,9 @@ def pixel_measure(En,th,phi,noise, stateNoise):
     results[4]=measure(perturbState(h, stateNoise), perturbState(d, stateNoise),unit_op,noise)
     
     return results
+
+
+
 
 def pixel_measure_cart(En,nx,ny,nz,noise,stateNoise):
     # Let's introduce slight perturbations onto the states that we choose to measure. 
@@ -528,6 +540,17 @@ def full_measure(En,th,phi,res,noise, stateNoise): #measures each pixel and retu
         
     
     return results
+
+def full_measure_reorder(full_meas, res):
+    temp_full_meas = np.zeros([res,res,5])
+    temp_full_meas[:,:,0] = full_meas[:,:,3]
+    temp_full_meas[:,:,1] = full_meas[:,:,1]
+    temp_full_meas[:,:,2] = full_meas[:,:,4]
+    temp_full_meas[:,:,3] = full_meas[:,:,0]
+    temp_full_meas[:,:,4] = full_meas[:,:,2]
+    
+    return temp_full_meas
+    
 
 def full_measure_cart(En,nx,ny,res,noise,stateNoise, nz=None): # Same function, but now we consider the cartesian parameterization
     if nz is None:
