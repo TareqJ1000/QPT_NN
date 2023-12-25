@@ -2,7 +2,7 @@
 
 import argparse
 import tensorflow as tf
-from dataGenNew import rand_En, rand_costheta, rand_phi, full_measure, compute_waveplate
+from dataGenNew import rand_En, rand_costheta, rand_phi, full_measure, compute_waveplate, norm_unitary 
 from dataGenNew import rand_nx, rand_ny, rand_nz
 import numpy as np
 import time
@@ -13,7 +13,6 @@ import yaml
 from yaml import Loader
 import random
 import math
-
 
 # parse through slurm array (for use w/ bash script. You can set shift to be a random integer for the purposes of testing locally)
 
@@ -38,11 +37,11 @@ isWaveplate = cnfg['isWaveplate']
 max_waveplates = cnfg['max_waveplate']
 
 '''
-# parameters that control the proportion of training:test case examples\
+# parameters that control the proportion of training:test case examples
 '''
 
 alpha = cnfg['alpha'] # % of training examples that are special cases
-alpha2 = cnfg['alpha2'] # % of test examples that are special cases (default 50%)
+alpha2 = cnfg['alpha2'] # % of test examples that are special cases 
 
 test = 0.15*total
 train = 0.85*total
@@ -56,6 +55,11 @@ normal_test = (1-alpha2)*test
 filename_train = cnfg['filename_train']
 filename_test = cnfg['filename_test']
 applyInverse = cnfg['apply_inversion']
+constant_process = cnfg['constant_process']
+
+n_coeff_low = cnfg['n_coeffs_low']
+n_coeff_high = cnfg['n_coeffs_high']
+
 
 '''
 # Now to generate training examples
@@ -64,12 +68,13 @@ applyInverse = cnfg['apply_inversion']
 X_train = np.empty((int(train), res, res, 5))
 y_train = np.empty((int(train), res, res, 3))
 
+
 for ii in range(int(normal_train)+int(special_train)):
     num_waveplates = np.random.randint(low=1, high=max_waveplates+1)
     fac = np.random.uniform(0, 0.0001)
     
     if(isWaveplate):
-        a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=n_coeff_low, high=n_coeff_high),np.random.randint(low=n_coeff_low, high=cnfg['n_coeffs_high']), res, maxAng)
         
         if a2[0,0] > np.pi/2:
             a2 = np.pi - a2
@@ -77,20 +82,46 @@ for ii in range(int(normal_train)+int(special_train)):
                 a1 = np.pi - a1
                 a3 = 2*np.pi - a3
         
-        
         if (a2[0,0] < (np.pi/2 + noise)  and a2[0,0] > (np.pi/2 - noise)) and a3[0,0] > np.pi:
             a3 = 2*np.pi - a3
-            
         
+    
+    elif(constant_process): # Generates, from spherical coordinates, processes where one of them is constant. 
         
-            
+        a1 = rand_En(np.random.randint(low=n_coeff_low, high=n_coeff_high),np.random.randint(low=n_coeff_low, high=n_coeff_high),res, maxAng) 
+        a2 = rand_costheta(np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high), res, maxAng)
+        a3 = rand_phi(np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high), res, maxAng)
         
-    else:
-        a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),res, maxAng) 
-        #obtain cartesian coordinates
-        nx = rand_nx(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
-        ny = rand_ny(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
-        nz = rand_nz(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        roulette = np.random.randint(0, high=3)
+        
+        if (roulette == 0):
+            a1 = rand_En(0,0,res,maxAng)
+        if (roulette == 1):
+            a2 = rand_En(0,0,res,maxAng)
+        if (roulette == 2):
+            a3 = rand_En(0,0,res,maxAng)
+
+    else: 
+        
+        a1=rand_En(np.random.randint(low=n_coeff_low, high=n_coeff_high),np.random.randint(low=n_coeff_low, high=n_coeff_high),res, maxAng) 
+        
+        # Let's define a list which stores # of coefficents featured by each sample 
+        
+        freqs_nx = np.array([np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high)]) # Freq_nx[0] refers to # of coeffs in x direction. freq_ny[0] refers to # of coeffs in y direction
+        freqs_ny = np.array([np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high)]) 
+        freqs_nz = np.array([np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high)]) 
+       
+        # Compute the sum of each frequency list 
+        
+        sum_nx = np.sum(freqs_nx)
+        sum_ny = np.sum(freqs_ny)
+        sum_nz = np.sum(freqs_nz)
+        
+        # Obtain cartesian coordinates
+        
+        nx = rand_nx(freqs_nx[0], freqs_nx[1], res, maxAng)
+        ny = rand_ny(freqs_ny[0], freqs_ny[1], res, maxAng)
+        nz = rand_nz(freqs_nz[0], freqs_nz[1], res, maxAng)
         
         if (ii > normal_train):
                 a2=fac*nz
@@ -99,10 +130,8 @@ for ii in range(int(normal_train)+int(special_train)):
         
         # First, normalize cartesian coordinates 
         
-        norm = np.sqrt(nx**2 + ny**2 + nz**2)
-        nx = nx/norm 
-        ny = ny/norm 
-        nz = nz/norm 
+        nx,ny,nz = norm_unitary(nx, ny, nz, sum_nx, sum_ny, sum_nz)
+        
 
         # Perform the inversion
         
@@ -114,18 +143,20 @@ for ii in range(int(normal_train)+int(special_train)):
                 ny = -ny
                 
         # If nz is not small (depending on the noise), or if nx is positive, then we break out of the loop
-        
         if (nz[0,0] < noise and nz[0,0] > -noise) and nx[0,0] < 0:
             nx = -nx 
-
         # Now, convert to spherical coordinates
-        
-        
         a2 = np.arccos(nz)
-        a3 = np.arctan2(ny, nx)  
+        a3 = np.arctan2(ny, nx) 
     
-    # In the special case where a2 is very near pi/2, perform another inversion s.t. process is confined to one quarter of the bloch sphere
-    
+        
+        # rewrap phi
+        for i in range(res):
+            for j in range(res):
+                if a3[i,j] < 0:
+                    a3[i,j] += 2*np.pi
+        
+        
     y_train[ii,:,:,0] = a1
     y_train[ii,:,:,1] = a2
     y_train[ii,:,:,2] = a3
@@ -155,7 +186,7 @@ for ii in range(int(normal_test)+int(special_test)):
     
     if(isWaveplate):
         
-        a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
+        a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high), res, maxAng)
        
         # Apply inversion over theta
         if a2[0,0] > np.pi/2:
@@ -167,22 +198,54 @@ for ii in range(int(normal_test)+int(special_test)):
         # Invert phi if first pixel is greater than pi. 
         if (a2[0,0] < (np.pi/2 + noise)  and a2[0,0] > (np.pi/2 - noise)) and a3[0,0] > np.pi:
             a3 = 2*np.pi - a3
-                
+    
+    elif(constant_process): # Generates, from spherical coordinates, processes where one of them is constant. 
+        
+        a1 = rand_En(np.random.randint(low=n_coeff_low, high=n_coeff_high),np.random.randint(low=n_coeff_low, high=n_coeff_high),res, maxAng) 
+        a2 = rand_costheta(np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high), res, maxAng)
+        a3 = rand_phi(np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high), res, maxAng)
+        
+        roulette = np.random.randint(0, high=3)
+        
+        if (roulette == 0):
+            a1 = rand_En(0,0,res,maxAng)
+        if (roulette == 1):
+            a2 = rand_En(0,0,res,maxAng)
+        if (roulette == 2):
+            a3 = rand_En(0,0,res,maxAng)
     
     else:
-        
-        a1=rand_En(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']),res, maxAng) 
+        a1=rand_En(np.random.randint(low=n_coeff_low, high=n_coeff_high),np.random.randint(low=n_coeff_low, high=n_coeff_high),res, maxAng) 
         #obtain cartesian coordinates
-        nx = rand_nx(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
-        ny = rand_ny(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
-        nz = rand_nz(np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), np.random.randint(low=cnfg['n_coeffs_low'], high=cnfg['n_coeffs_high']), res, maxAng)
-
+        
+        # Let's define a list which stores # of coefficents featured by each sample 
+        
+        freqs_nx = np.array([np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high)]) # Freq_nx[0] refers to # of coeffs in x direction. freq_ny[0] refers to # of coeffs in y direction
+        freqs_ny = np.array([np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high)]) 
+        freqs_nz = np.array([np.random.randint(low=n_coeff_low, high=n_coeff_high), np.random.randint(low=n_coeff_low, high=n_coeff_high)]) 
+       
+        # Compute the sum of each frequency list 
+        
+        sum_nx = np.sum(freqs_nx)
+        sum_ny = np.sum(freqs_ny)
+        sum_nz = np.sum(freqs_nz)
+        
+        # Obtain cartesian coordinates
+        
+        nx = rand_nx(freqs_nx[0], freqs_nx[1], res, maxAng)
+        ny = rand_ny(freqs_ny[0], freqs_ny[1], res, maxAng)
+        nz = rand_nz(freqs_nz[0], freqs_nz[1], res, maxAng)
+        
+        if (ii > normal_train):
+                a2=fac*nz
+        else:
+                a2=nz
+        
         # First, normalize cartesian coordinates 
         
-        norm = np.sqrt(nx**2 + ny**2 + nz**2)
-        nx = nx/norm 
-        ny = ny/norm 
-        nz = nz/norm 
+        nx,ny,nz = norm_unitary(nx, ny, nz, sum_nx, sum_ny, sum_nz)
+
+        # Perform the inversion
     
         if(ii > normal_test):
                 a2=fac*nz
@@ -223,7 +286,7 @@ for ii in range(int(normal_test)+int(special_test)):
 
 # Dump everything (test examples)
 
-with open(filename_test + '.pkl', 'wb') as f:
+with open(filename_test + f'{shift}.pkl', 'wb') as f:
     pickle.dump([X_test, y_test], f)
     
     

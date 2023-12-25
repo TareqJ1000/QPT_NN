@@ -20,6 +20,17 @@ s1 = np.matrix([[0,1],[1,0]])
 s2 = np.matrix([[0,-1j],[1j,0]])
 s3 = np.matrix([[1,0],[0,-1]])
 
+# State definitions
+
+l=np.array([1,0])
+r=np.array([0,1])
+
+h=np.array([1,1])/np.sqrt(2)
+v=np.array([1,-1])/np.sqrt(2)
+
+d=np.array([1,1j])/np.sqrt(2)
+a=np.array([1,-1j])/np.sqrt(2)
+
 # In[2]:
     
 # Calculates the coefficients of the fourier series
@@ -134,35 +145,35 @@ def rand_En(n_coeff_x, n_coeff_y, res, maxAng): #random quasi-energy (also calle
  
 def rand_costheta(n_coeff_x, n_coeff_y ,res, maxAng): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
     
-    ang=random.uniform(0,2*np.pi)
+    ang=random.uniform(0,maxAng)
             
     x_min = random.uniform(0,1)
-    x_max = x_min + random.uniform(0,1)
+    x_max = x_min + random.uniform(0.5,1)
     y_min = random.uniform(0,1)
-    y_max = y_min + random.uniform(0,1)
+    y_max = y_min + random.uniform(0.5,1)
             
     x = np.linspace(x_min, x_max, res)
     y = np.linspace(y_min, y_max, res)
 
     X, Y = np.meshgrid(x, y)
     
-    return 2*(generate_random_function(X, Y, 0, 1, n_coeff_x, n_coeff_y, ang)) - 1
+    return np.pi*(generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y, ang))
 
 def rand_phi(n_coeff_x, n_coeff_y, res, maxAng): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
     
     ang=random.uniform(0,maxAng)
             
     x_min = random.uniform(0,1)
-    x_max = x_min + random.uniform(0,1)
+    x_max = x_min + random.uniform(0.5,1)
     y_min = random.uniform(0,1)
-    y_max = y_min + random.uniform(0,1)
+    y_max = y_min + random.uniform(0.5,1)
             
     x = np.linspace(x_min, x_max, res)
     y = np.linspace(y_min, y_max, res)
 
     X, Y = np.meshgrid(x, y)
     
-    return 2*np.pi * (generate_random_function(X, Y, 0, 1, n_coeff_x, n_coeff_y,ang))
+    return 2*np.pi*(generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y,ang))
 
 def rand_nx(n_coeff_x, n_coeff_y ,res, maxAng): #random nx
     
@@ -228,15 +239,67 @@ def Ugen(En,th,phi): #unitary through polar-coordinate parameters
     return mat
 
 
-def Ugen_cart(En, nx, ny, nz): #unitary from cartesian parameters
-    mat=np.zeros([2,2],dtype=complex)
+# This is a special normalization function which handles normalization case by case
+
+def norm_unitary(nx,ny,nz,sum_nx,sum_ny,sum_nz):
     
-    mat[0,0]=np.cos(En) - 1j*np.sin(En)*nz
-    mat[0,1]=-1j*np.sin(En)*(nx - 1j*ny)
-    mat[1,0]=-1j*np.sin(En)*(nx + 1j*ny)
-    mat[1,1]=np.cos(En) + 1j*np.sin(En)*nz
+    print(f"nx: {sum_nx}, ny: {sum_ny}, nz: {sum_nz}")
+   
+    res = np.shape(nx)[0]
+    nx_new = np.zeros((res,res))
+    ny_new = np.zeros((res,res))
+    nz_new = np.zeros((res,res))
     
-    return mat
+    # To handle processes w/ two constant parameters, we filp a coin
+    roulette = np.random.randint(0,2)
+    print(f"coin: {roulette}")
+    
+    if (sum_nx == 0 and sum_ny == 0 and sum_nz == 0) or (sum_nx > 0 and sum_ny > 0 and sum_nz > 0): # Normalize normally
+        norm = np.sqrt(nx**2 + ny**2 + nz**2)
+        
+        
+        nx_new = nx/norm
+        ny_new = ny/norm
+        nz_new = nz/norm 
+        
+        print('1')
+    
+    elif (sum_nx==0 and sum_ny > 0 and sum_nz > 0) or (sum_nx==0 and sum_ny==0 and roulette==0) or (sum_nx==0 and sum_nz==0 and roulette==0) : # This means that nx is a constant process
+        norm = np.sqrt((ny**2 + nz**2)/(1-nx**2))
+        
+        # leave nx as is, but renorm the others. If we have two constant processes, nx is fixed, while ny or nz becomes variable due to the norming. 
+        nx_new = nx
+        ny_new = ny/norm
+        nz_new = nz/norm 
+        
+        
+        print('2')
+        
+    elif (sum_ny==0 and sum_nx > 0 and sum_nz > 0) or (sum_nx==0 and sum_ny==0 and roulette==1) or (sum_ny==0 and sum_nz==0 and roulette==0): # Now ny is a constant process here
+        norm = np.sqrt((nx**2 + nz**2)/(1-ny**2))
+        
+        # Leave ny as is, but renorm the others
+        nx_new = nx/norm 
+        ny_new = ny
+        nz_new = nz/norm 
+        
+        print('3')
+    
+    elif (sum_nz==0 and sum_nx > 0 and sum_ny > 0) or (sum_nx==0 and sum_nz==0 and roulette==1) or (sum_ny==0 and sum_nz==0 and roulette==1): # Now nz is a constant process here 
+        norm = np.sqrt((ny**2 + nx**2)/(1-nz**2))
+        
+        # Leave nz as is, but renorm the others 
+        nx_new = nx/norm
+        ny_new = ny/norm
+        nz_new = nz
+        
+        print('4')
+        
+    
+    return nx_new, ny_new, nz_new
+        
+
+
 
 
 '''
@@ -326,44 +389,6 @@ def retrieve_phi(unitary,En):
     nx = np.real(retrieve_nx(unitary, En))
     ny = np.real(retrieve_ny(unitary, En))
     return np.arctan2(ny,nx)
-
-# Complete function which generates the unitary for one or more waveplates and returns En, theta, phi
-
-def compute_waveplate_cart(num_waveplate, n_coeff, res, maxAng, isCart2=False):
-    
-    En = np.zeros([res, res])
-    nx = np.zeros([res,res])
-    ny = np.zeros([res,res])
-    nz = np.zeros([res,res])
-    
-    theta_list, delta_list = casOptics(num_waveplate, n_coeff, res, maxAng)
-    
-    for ind1 in range(res):
-        for ind2 in range(res):
-            # build up the waveplate
-            uSyn = np.identity(2, dtype=complex)
-            
-            for i in range(num_waveplate):
-                uSyn = np.dot(uSyn, waveGen(delta_list[i], theta_list[i][ind1][ind2]))
-            
-            En_pix = retrieve_En(uSyn)
-            
-            #cartesian
-            nx_pix= retrieve_nx(uSyn, En_pix)
-            ny_pix =retrieve_ny(uSyn, En_pix)
-            nz_pix =retrieve_nz(uSyn, En_pix)
-                
-            En[ind1,ind2] = En_pix
-            nx[ind1,ind2] = nx_pix
-            ny[ind1,ind2] = ny_pix
-            nz[ind1,ind2] = nz_pix
-      
-        
-    if(isCart2):
-          return En, nx, ny
-    else: 
-          return En, nx, ny, nz
-      
 # Complete function which generates the unitary for one or more waveplates and returns En, theta, phi
 
 def compute_waveplate(num_waveplate, n_coeff_x, n_coeff_y, res, maxAng):
@@ -458,17 +483,6 @@ def measure(in_pol,out_pol,evo_op,noise): #polarimetric measurement with noise
     
     return result
 
-# State definitions
-
-l=np.array([1,0])
-r=np.array([0,1])
-
-h=np.array([1,1])/np.sqrt(2)
-v=np.array([1,-1])/np.sqrt(2)
-
-d=np.array([1,1j])/np.sqrt(2)
-a=np.array([1,-1j])/np.sqrt(2)
-
 def perturbState(state, randNoise):
     perturbingState = np.array([random.uniform(0, randNoise), random.uniform(0,randNoise)])
     newState = state + perturbingState
@@ -486,7 +500,7 @@ def rotateState(state_name):
     return newState
 
 
-def pixel_measure(En,th,phi,noise, stateNoise):
+def pixel_measure(En,th,phi,noise, stateNoise, rotateBasis = False):
     
     # Let's introduce slight perturbations onto the states that we choose to measure. 
     # The noise needs to be uncorrelated 
@@ -496,9 +510,12 @@ def pixel_measure(En,th,phi,noise, stateNoise):
     results=np.zeros([5])
       
     results[0]=measure(perturbState(l, stateNoise), perturbState(l, stateNoise), unit_op,noise)
-            
-    results[1]=measure(perturbState(l, stateNoise), perturbState(h, stateNoise), unit_op, noise)
     
+    if(rotateBasis):
+        results[1]=measure(perturbState(h, stateNoise), perturbState(l, stateNoise), unit_op, noise)
+    else:
+        results[1]=measure(perturbState(l, stateNoise), perturbState(h, stateNoise), unit_op, noise)
+        
     results[2]=measure(perturbState(l, stateNoise), perturbState(d, stateNoise),unit_op,noise)
             
     results[3]=measure(perturbState(h, stateNoise), perturbState(h, stateNoise),unit_op,noise)
@@ -507,36 +524,13 @@ def pixel_measure(En,th,phi,noise, stateNoise):
     
     return results
 
-
-
-
-def pixel_measure_cart(En,nx,ny,nz,noise,stateNoise):
-    # Let's introduce slight perturbations onto the states that we choose to measure. 
-    # The noise needs to be uncorrelated 
-    
-    unit_op=Ugen_cart(En,nx,ny,nz)
-    results=np.zeros([5])
-      
-    results[0]=measure(l,l,unit_op,noise)
-            
-    results[1]=measure(l,h,unit_op,noise)
-    
-    results[2]=measure(l,d,unit_op,noise)
-            
-    results[3]=measure(h,h,unit_op,noise)
-    
-    results[4]=measure(h,d,unit_op,noise)
-    
-    return results
-
-
-def full_measure(En,th,phi,res,noise, stateNoise): #measures each pixel and returns flattened res^2 X dim_in vector (dim_in=5)
+def full_measure(En,th,phi,res,noise, stateNoise, rotateBasis = False): #measures each pixel and returns flattened res^2 X dim_in vector (dim_in=5)
     
     results=np.zeros([res,res,5])
 
     for ind1 in range(res):
         for ind2 in range(res):
-            results[ind1,ind2,:]=pixel_measure(En[ind1,ind2],th[ind1,ind2],phi[ind1,ind2],noise, stateNoise)
+            results[ind1,ind2,:]=pixel_measure(En[ind1,ind2],th[ind1,ind2],phi[ind1,ind2],noise, stateNoise, rotateBasis = rotateBasis)
         
     
     return results
@@ -550,17 +544,6 @@ def full_measure_reorder(full_meas, res):
     temp_full_meas[:,:,4] = full_meas[:,:,2]
     
     return temp_full_meas
-    
-
-def full_measure_cart(En,nx,ny,res,noise,stateNoise, nz=None): # Same function, but now we consider the cartesian parameterization
-    if nz is None:
-        nz = np.sqrt(np.abs(1-nx**2-ny**2))
-    results=np.zeros([res,res,5])
-    for ind1 in range(res):
-        for ind2 in range(res):
-            results[ind1,ind2,:]=pixel_measure_cart(En[ind1,ind2],nx[ind1,ind2], ny[ind1,ind2],nz[ind1,ind2],noise, stateNoise)
-            
-    return results
     
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
