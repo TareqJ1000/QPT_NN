@@ -499,15 +499,17 @@ def rotateState(state_name):
     
     return newState
 
-
-def pixel_measure(En,th,phi,noise, stateNoise, rotateBasis = False):
+def pixel_measure(En,th,phi,noise, stateNoise, rotateBasis = False, sixMeasure = False):
     
     # Let's introduce slight perturbations onto the states that we choose to measure. 
     # The noise needs to be uncorrelated 
     
     unit_op=Ugen(En,th,phi)
     
-    results=np.zeros([5])
+    if (sixMeasure):
+        results=np.zeros([6])
+    else: 
+        results=np.zeros([5])
       
     results[0]=measure(perturbState(l, stateNoise), perturbState(l, stateNoise), unit_op,noise)
     
@@ -522,17 +524,23 @@ def pixel_measure(En,th,phi,noise, stateNoise, rotateBasis = False):
     
     results[4]=measure(perturbState(h, stateNoise), perturbState(d, stateNoise),unit_op,noise)
     
+    if(sixMeasure):
+        results[5]=measure(perturbState(h, stateNoise), perturbState(l, stateNoise), unit_op, noise)
+    
     return results
 
-def full_measure(En,th,phi,res,noise, stateNoise, rotateBasis = False): #measures each pixel and returns flattened res^2 X dim_in vector (dim_in=5)
-    
-    results=np.zeros([res,res,5])
+
+def full_measure(En,th,phi,res,noise, stateNoise, rotateBasis = False, sixMeasure = False): #measures each pixel and returns flattened res^2 X dim_in vector (dim_in=5)
+
+    if (sixMeasure):
+        results=np.zeros([res,res,6])
+    else:
+        results=np.zeros([res,res,5])
 
     for ind1 in range(res):
         for ind2 in range(res):
-            results[ind1,ind2,:]=pixel_measure(En[ind1,ind2],th[ind1,ind2],phi[ind1,ind2],noise, stateNoise, rotateBasis = rotateBasis)
+            results[ind1,ind2,:]=pixel_measure(En[ind1,ind2],th[ind1,ind2],phi[ind1,ind2],noise, stateNoise, rotateBasis = rotateBasis, sixMeasure=sixMeasure)
         
-    
     return results
 
 def full_measure_reorder(full_meas, res):
@@ -547,7 +555,7 @@ def full_measure_reorder(full_meas, res):
     
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, noise=0.01,stateNoise=0.01, n_coeff=10, res=128, batch_size=100, batches_per_epoch=100, alpha=0.3, n_coeff_low=1, n_coeff_high=15, maxAng=math.radians(10), isWaveplates = True, num_waveplates=10, num_waveplates_min=1, num_waveplates_max=2, unitaryParam = 3, isSingle=False, applyInverse = False): #default values
+    def __init__(self, noise=0.01,stateNoise=0.01, n_coeff=10, res=128, batch_size=100, batches_per_epoch=100, alpha=0.3, n_coeff_low=1, n_coeff_high=15, maxAng=math.radians(10), isWaveplates = True, num_waveplates=10, num_waveplates_min=1, num_waveplates_max=2, unitaryParam = 3, isSingle=False, applyInverse = False, sixMeasure = False): #default values
         'Initialization'
         self.batch_size=batch_size # number of datasets per batch size
         self.res=res # resolution to use
@@ -564,6 +572,7 @@ class DataGenerator(keras.utils.Sequence):
         self.isSingle = isSingle # Do we consider training with only a single output? 
         self.unitaryParam = unitaryParam # for single output training
         self.applyInverse = applyInverse
+        self.sixMeasure = sixMeasure # Do we predict w/ six polametric measurements?
     
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -585,7 +594,11 @@ class DataGenerator(keras.utils.Sequence):
         'Generates data containing batch_size samples. Here, we generate processes derived from optical waveplates'
         
         # Initialization
-        X = np.empty((self.batch_size,self.res,self.res,5))
+        if(self.sixMeasure):
+            X = np.empty((self.batch_size,self.res,self.res,6))
+        else:
+            X = np.empty((self.batch_size,self.res,self.res,5))
+            
         y = np.empty((self.batch_size,self.res,self.res,3))
     
         for i in range(0, self.batch_size):

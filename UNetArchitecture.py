@@ -92,8 +92,12 @@ def DecoderBlock(filters, size, layers, upsamplesize=2, useDropOut=True, dropRat
 
     return conv
 
-def uNet(num_pixel, nnType, name, kernelSize=3, dropRate = 0.1, layers = 1):
-    inputs = Input(shape = [num_pixel, num_pixel, 5])
+def uNet(num_pixel, nnType, name, kernelSize=3, dropRate = 0.1, layers = 1, sixMeasure = False):
+    if (sixMeasure):
+        inputs = Input(shape = [num_pixel, num_pixel, 6])
+    else:
+        inputs = Input(shape = [num_pixel, num_pixel, 5])
+
     is3D = False
     
     if (nnType==2 or nnType==3): # 16 x 16 
@@ -157,9 +161,9 @@ def uNet(num_pixel, nnType, name, kernelSize=3, dropRate = 0.1, layers = 1):
     
 # Test out the new function 
 
-#ziggy = uNet(64, 7, 'spiffyfaf', kernelSize=3)
+# ziggy = uNet(64, 7, 'spiffyfaf', kernelSize=3, sixMeasure=True)
 
-#ziggy.summary()
+# ziggy.summary()
 
 
 

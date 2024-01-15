@@ -29,11 +29,12 @@ nntype = cnfg['nnType']
 kernelSize = cnfg['kernelSize']
 dropRate = cnfg['dropRate']
 layers = cnfg['layers']
+sixMeasure = cnfg['sixMeasure']
 
 freezeLayers = cnfg['freezeLayers']
 
 # Initializes the model for training 
-model = ff_network(cnfg['num_pixs'],3,nntype,cnfg['model_name'], kernelSize=kernelSize, dropRate=dropRate, layers=layers)
+model = ff_network(cnfg['num_pixs'],3,nntype,cnfg['model_name'], kernelSize=kernelSize, dropRate=dropRate, layers=layers, sixMeasure=sixMeasure)
 
 # Let's try performing transfer learning! (If applicable)
 

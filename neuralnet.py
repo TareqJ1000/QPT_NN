@@ -95,7 +95,7 @@ class PlotLearning(tf.keras.callbacks.Callback):
     
 
 class ff_network(tf.Module):
-    def __init__ (self, size_of_input, size_of_output, type, name, kernelSize=3, dropRate = 0.1, layers = 1): # This initializes the neural network with a certain chosen architecture
+    def __init__ (self, size_of_input, size_of_output, type, name, kernelSize=3, dropRate = 0.1, layers = 1, sixMeasure=False): # This initializes the neural network with a certain chosen architecture
         super(ff_network, self).__init__()
         
         if (type==0): # This is the original architecture of the network as seen in the paper. 
@@ -121,7 +121,7 @@ class ff_network(tf.Module):
                                        Dense(size_of_input*size_of_input*3, activation = 'sigmoid'), Reshape((size_of_input, size_of_input, 3))], name=name)
         
         if (type==2 or type==3 or type==4 or type==5 or type==6 or type==7 or type==8 or type==9 or type==10 or type==11 or type==12 or type==13):
-           self.mynn = uNet(size_of_input, type, name, kernelSize=kernelSize, dropRate = dropRate, layers=layers)
+           self.mynn = uNet(size_of_input, type, name, kernelSize=kernelSize, dropRate = dropRate, layers=layers, sixMeasure=sixMeasure)
            #self.mynn.name = name
            
            

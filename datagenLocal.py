@@ -22,6 +22,8 @@ parser.add_argument('--ii', dest='ii', type=int,
 args = parser.parse_args()
 shift = args.ii
 
+shift = 0
+
 # Load configuration file
 stream = open(f"configs/datagen{shift}.yaml", 'r')
 cnfg = yaml.load(stream, Loader=Loader)
@@ -35,6 +37,8 @@ stateNoise = cnfg['stateNoise']
 maxAng = math.radians(cnfg['maxAng'])
 isWaveplate = cnfg['isWaveplate']
 max_waveplates = cnfg['max_waveplate']
+sixMeasure = cnfg['sixMeasure']
+
 
 '''
 # parameters that control the proportion of training:test case examples
@@ -64,8 +68,11 @@ n_coeff_high = cnfg['n_coeffs_high']
 '''
 # Now to generate training examples
 '''
-
-X_train = np.empty((int(train), res, res, 5))
+if (sixMeasure):
+    X_train = np.empty((int(train), res, res, 6))
+else:
+    X_train = np.empty((int(train), res, res, 5))
+    
 y_train = np.empty((int(train), res, res, 3))
 
 
@@ -161,7 +168,7 @@ for ii in range(int(normal_train)+int(special_train)):
     y_train[ii,:,:,1] = a2
     y_train[ii,:,:,2] = a3
         
-    X_train[ii] = full_measure(a1,a2,a3,res,noise, stateNoise)
+    X_train[ii] = full_measure(a1,a2,a3,res,noise, stateNoise, sixMeasure=sixMeasure)
     
     if ii % 50 == 0:
         print('Training data: ', ii, '/',normal_train)
@@ -175,7 +182,11 @@ with open(filename_train + '.pkl', 'wb') as f:
 # Test Example Cases       #
 ############################ 
 
-X_test = np.empty((int(test), res, res, 5))
+if(sixMeasure):
+    X_test = np.empty((int(test), res, res, 6))
+else:
+    X_test = np.empty((int(test), res, res, 5))
+    
 y_test = np.empty((int(test), res, res, 3))
 
 # First, generate normal examples
@@ -279,7 +290,7 @@ for ii in range(int(normal_test)+int(special_test)):
     y_test[ii,:,:,1] = a2
     y_test[ii,:,:,2] = a3
         
-    X_test[ii] = full_measure(a1,a2,a3,res,noise, stateNoise)
+    X_test[ii] = full_measure(a1,a2,a3,res,noise, stateNoise, sixMeasure=sixMeasure)
     
     if ii % 50 == 0:
         print('Training data: ', ii, '/',normal_train)
