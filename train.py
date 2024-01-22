@@ -16,7 +16,7 @@ from dataGenNew import DataGenerator
 from neuralnet import ff_network, train_network, avg_fidelity_loss
 
 # Load configuration file
-stream = open(f"configs/train0.yaml", 'r')
+stream = open(f"configs/train.yaml", 'r')
 cnfg = yaml.load(stream, Loader=Loader)
 
 seed = random.randint(1000, 9999)

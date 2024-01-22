@@ -3,8 +3,8 @@ min_lr: '1.e-7'
 epochs_to_update: 15
 lr_factor: 0.1
 num_of_epochs: 200
-model_path: 'models/64Net_sixMeasure'
-model_name: '64Net_sixMeasure'
+model_path: 'models/64Net_test'
+model_name: '64Net_test'
 load_model: False
 old_model_name: 64Net_wps_10percent
 nnType: 7
@@ -18,15 +18,14 @@ enableGPU: True
 enableDataGen: False
 shuffle: True
 sixMeasure: True
+valSplit: 0.85
 
-datafile_train: 64by64_50k_sixMeasure_train.pkl
-datafile_test: 64by64_50k_sixMeasure_test.pkl
+datafile: 64by64_150_fullDataset.pkl
 
 freezeLayers: False
 freeze_policy_begin: 0
 freeze_policy_end: 19
 
-valSplit: 0.15
 
 train_params: {'batch_size': 32,
                 'batches_per_epoch': 1064,

@@ -222,25 +222,45 @@ def mse_cyclic_single(y_true, y_pred): # Here, we now assume that the data is no
                   K.minimum(K.square(y_pred[:,:,:] - y_true[:,:,:] + 1), K.square(y_pred[:,:,:] - y_true[:,:,:] - 1))))
     
 
-def loadData(filename, batch_size, forTrain = True): # This supports pickle only for now 
+
+def loadData(filename, trainPercent): # This supports pickle only for now. This also divides the total dataset into training and testing, allowing for easy control of the split.  
     
     file = open(filename,'rb')
     X,y = pickle.load(file)
+    testPercent = 1 - trainPercent
     
-    if (forTrain):
+    total = len(X)
+    trainLength = int(trainPercent*total)
+    testLength =  int(testPercent*total)
     
-        bufferSize = len(X)
-        
-        # Load the dataset from tf 
-        
-        dataset = tf.data.Dataset.from_tensor_slices((X,y))
-        dataset = dataset.shuffle(buffer_size=bufferSize) # Apparently, we should set the buffer size to be greater than or equal to the dataset set
-        dataset = dataset.batch(batch_size)
-        
-        return dataset
+    # Create shapes for the training/testing dataset
     
-    else:
-        return X,y
+    OGShape_X = np.shape(X)
+    OGShape_y = np.shape(y)
+    
+    XShape_train = (trainLength, OGShape_X[1], OGShape_X[2], OGShape_X[3])
+    yShape_train =  (trainLength, OGShape_y[1], OGShape_y[2], OGShape_y[3])
+    
+    XShape_test = (testLength, OGShape_X[1], OGShape_X[2], OGShape_X[3])
+    yShape_test = (testLength, OGShape_y[1], OGShape_y[2], OGShape_y[3])
+
+    # Instantiate empty lists for the training/test dataset
+    
+    X_train = np.empty(XShape_train)
+    y_train = np.empty(yShape_train)
+    
+    X_test = np.empty(XShape_test)
+    y_test = np.empty(yShape_test)
+    
+    # Now, activate the indices
+    
+    X_train = X[:trainLength]
+    y_train = y[:trainLength]
+    
+    X_test = X[trainLength:]
+    y_test = y[trainLength:]
+
+    return X_train, y_train, X_test, y_test
 
 def train_network(config, model):
     
@@ -260,15 +280,6 @@ def train_network(config, model):
     
     if not os.path.exists(model_path):
         os.makedirs(model_path)
-        
-    if not enableDataGen:
-        #Load up training dataset
-        train_dataset = loadData(config['datafile_train'], batchSize)
-        #X_train, y_train = loadData(config['datafile_train'], batchSize, forTrain=False)
-
-        # Load up validation dataset 
-        test_dataset = loadData(config['datafile_test'], batchSize)
-        #X_test, y_test = loadData(config['datafile_test'], batchSize, forTrain=False)
     
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath = model_path, save_weights_only=False, verbose=1) # callbacks 
     
@@ -280,7 +291,7 @@ def train_network(config, model):
     #enableGPU = False
     if (enableGPU==False):
         metricList = [avg_fidelity_loss(num_pixs)]
-        
+
     model.mynn.compile(loss=mse_cyclic_3, optimizer=adam_optimizer, metrics=metricList)
     
     if (config['load_model']):
@@ -295,14 +306,10 @@ def train_network(config, model):
     # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     
     if not enableDataGen:
-        #Load up training dataset
-        # train_dataset = loadData(config['datafile_train'], batchSize)
-        X_train, y_train = loadData(config['datafile_train'], batchSize, forTrain=False)
-        # Load up validation dataset 
-        # test_dataset = loadData(config['datafile_test'], batchSize)
-        X_test, y_test = loadData(config['datafile_test'], batchSize, forTrain=False)
-        # Create the FixedDatagenerator for each training and test object
-        
+    
+        # Load up the dataset, then split into test and train according to trainPercent
+        X_train, y_train, X_test, y_test = loadData(config['datafile'], valSplit)
+    
         shuffle = config['shuffle']
         sigma = config['sigma']
         
