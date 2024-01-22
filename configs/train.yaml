@@ -1,25 +1,26 @@
 init_lr: '1.e-3'
 min_lr: '1.e-7'
-epochs_to_update: 10
+epochs_to_update: 15
 lr_factor: 0.1
 num_of_epochs: 200
-model_path: 'models/64Net_heavyMetal_test'
-model_name: '64Net_heavyMetal_test'
+model_path: 'models/64Net_sixMeasure'
+model_name: '64Net_sixMeasure'
 load_model: False
-old_model_name: 64Net_oneDim
+old_model_name: 64Net_wps_10percent
 nnType: 7
 num_pixs: 64
-batchSize: 4
+batchSize: 8
 kernelSize: 3
 dropRate: 0.2
-layers: 1
+layers: 4
 sigma: 0.00
 enableGPU: True
 enableDataGen: False
 shuffle: True
+sixMeasure: True
 
-datafile_train: 64by64_25k_train_heavyMetal.pkl
-datafile_test: 64by64_25k_test_heavyMetal.pkl
+datafile_train: 64by64_50k_sixMeasure_train.pkl
+datafile_test: 64by64_50k_sixMeasure_test.pkl
 
 freezeLayers: False
 freeze_policy_begin: 0
@@ -28,27 +29,27 @@ freeze_policy_end: 19
 valSplit: 0.15
 
 train_params: {'batch_size': 32,
-                'batches_per_epoch': 266,
-                'noise' : 0.01,
+                'batches_per_epoch': 1064,
+                'noise' : 0.02,
                 'stateNoise': 0.00, 
-                'alpha': 0.30, 
-                'res': 64,
+                'alpha': 0.00, 
+                'res': 32,
                 'n_coeff_high': 6, 
                 'n_coeff_low': 0,
                 'isWaveplates': False,
-                'maxAng': 10
+                'maxAng': 5
                   }
 
 val_params: {'batch_size': 32,
-              'batches_per_epoch': 94,
-              'noise' : 0.01,
+              'batches_per_epoch': 188,
+              'noise' : 0.02,
               'stateNoise': 0.00,
-              'alpha': 0.30,
-              'res': 64,
+              'alpha': 0.00,
+              'res': 32,
               'n_coeff_high': 6, 
               'n_coeff_low': 0,                
               'isWaveplates': False,
-              'maxAng': 10
+              'maxAng': 5
                 }
 
 

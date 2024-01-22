@@ -1,0 +1,31 @@
+total: 1.e4
+num_pixs: 64
+n_coeffs_low: 0
+n_coeffs_high: 6
+noise: 0.02
+stateNoise: 0.00
+alpha: 0.00
+alpha2: 0.00
+isWaveplate: False
+max_waveplate: 2
+maxAng: 5
+apply_inversion: False
+constant_process: False
+sixMeasure: True
+
+filename_train: '64by64_10k_sixMeasure_train'
+filename_test: '64by64_10k_sixMeasure_test'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
