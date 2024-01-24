@@ -17,12 +17,14 @@ from tensorflow.keras.layers import Reshape
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras import optimizers
 
+
 from keras import backend as K
 
 # This is code that generates data batch-wise
 from dataGenNew import DataGenerator, fidReconstructTF, FixedDataGenerator
 from UNetArchitecture import uNet
 import time
+import math 
 # This is so that we get live feedback on how well our network is learning at each epoch. Credit to this medium article (https://medium.com/geekculture/how-to-plot-model-loss-while-training-in-tensorflow-9fa1a1875a5_)
 
 class PlotLearning(tf.keras.callbacks.Callback):
@@ -124,8 +126,6 @@ class ff_network(tf.Module):
            self.mynn = uNet(size_of_input, type, name, kernelSize=kernelSize, dropRate = dropRate, layers=layers, sixMeasure=sixMeasure)
            #self.mynn.name = name
            
-           
-        
     def forward(self, x): # predicted output of ff_network
         res = self.mynn(x)
         return res
@@ -278,6 +278,13 @@ def train_network(config, model):
     
     enableDataGen = config['enableDataGen'] # Do we use the data generator? 
     
+    # Load up an old model (if True)
+    
+    if (config['load_model']):
+        print('loading weights from old data...')
+        model.mynn = tf.keras.models.load_model(config['old_model_name'], custom_objects={'math': math, 'minMean': avg_fidelity_loss, 'minMeanNormal':avg_norm_loss, 'mse_cyclic_2':mse_cyclic_2, 'mse_cyclic_4': mse_cyclic_4}, compile=True)
+        #model.mynn.load_weights()
+    
     if not os.path.exists(model_path):
         os.makedirs(model_path)
     
@@ -294,9 +301,12 @@ def train_network(config, model):
 
     model.mynn.compile(loss=mse_cyclic_3, optimizer=adam_optimizer, metrics=metricList)
     
-    if (config['load_model']):
-        print('loading weights from old data...')
-        model.mynn.load_weights(config['old_model_name']+'/variables/variables')
+    
+    #if (config['load_model']):
+        #print('loading weights from old data...')
+        
+        #model.mynn = tf.keras.models.load_model(config['old_model_name'], custom_objects={'math': math, 'minMean': avg_fidelity_loss, 'minMeanNormal':avg_norm_loss, 'mse_cyclic_2':mse_cyclic_2, 'mse_cyclic_4': mse_cyclic_4}, compile=True)
+       # model.mynn.load_weights()
     
     model.mynn.summary()
     print("Let us begin with the training!")
