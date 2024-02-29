@@ -31,9 +31,15 @@ v=np.array([1,-1])/np.sqrt(2)
 d=np.array([1,1j])/np.sqrt(2)
 a=np.array([1,-1j])/np.sqrt(2)
 
-# In[2]:
-    
 # Calculates the coefficients of the fourier series
+# x - x coordinate map
+# y - y coordinate map
+# delta_low - lower bound of fourier coeff
+# delta_high - higher bound of fourier coeff 
+# n_coeff_x - number of fourier coefficents in the x direction 
+# n_coeff_y - number of fourier coefficents in the y direction
+# ang - angle of rotation of the process. 
+# minusOne - If true, then allow negative values in the final map 
 
 def generate_random_function(x, y, delta_low, delta_high, n_coeff_x, n_coeff_y, ang, minusOne = False): #generate random continuous function from a random set of coefficients
 
@@ -49,8 +55,6 @@ def generate_random_function(x, y, delta_low, delta_high, n_coeff_x, n_coeff_y, 
     coefficients_delta = np.random.uniform(low=delta_low, high=delta_high, size=(dim_x,dim_y))
     coefficients_gamma = np.random.uniform(low=delta_low, high=delta_high, size=(dim_x,dim_y))
     
-    # Calculate the maximum number of fourier coefficents
-    
     # Compute frequencies in the x and y directions
     
     frequency_x = np.zeros(dim_x)
@@ -61,11 +65,6 @@ def generate_random_function(x, y, delta_low, delta_high, n_coeff_x, n_coeff_y, 
         
     for ii in range(dim_y):
         frequency_y[ii] = 2*np.pi*(ii)
-    
-    # In principle, this should be the same thing? 
-    
-    #n = np.arange(0, n_coeff)  
-    #frequency = 2 * np.pi * (n+1)    # frequencies
     
     # Initialize the function value
     function_value = np.zeros([len(x),len(y)]) #this way it returns a matrix
@@ -79,57 +78,40 @@ def generate_random_function(x, y, delta_low, delta_high, n_coeff_x, n_coeff_y, 
         for j in range(dim_y):
            
             function_value += coefficients_alpha[i,j]*np.cos(frequency_x[i] * x1) * np.sin(frequency_y[j] * y1) + coefficients_beta[i,j]*np.sin(frequency_x[i] * x1) * np.cos(frequency_y[j] * y1)+ coefficients_delta[i,j]*np.cos(frequency_x[i] * x1) * np.cos(frequency_y[j] * y1)+ coefficients_gamma[i,j]*np.sin(frequency_x[i] * x1) * np.sin(frequency_y[j] * y1)
-            
+    
+    # Apply normalization to the maps
+    
     function_value = function_value/np.max(abs(function_value))
     
+    # Constant maps will fall either along +1 or -1, so introduce a random constant
+   
     if(n_coeff_x == 0 and n_coeff_y==0):
         function_value = function_value*np.random.uniform(0,1)
+    
+    # If the function is non-negative, then return (function_value+1)/2
     
     if(minusOne):
         return function_value
     else:
         return (function_value+1)/2
+    
+'''
+Functions for the generation of generic, periodic synthetic processes 
+'''
 
+# Random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
+# n_coeff_x - number of coefficents in the x direction 
+# n_coeff_y - number of coefficents in the y direction 
+# res - process resolution 
+# maxAng - maximum angle of rotation 
 
-def generate_random_function_poly(x,y,n_coeff,ang):
+def rand_En(n_coeff_x, n_coeff_y, res, maxAng): 
     
-    # generate coefficents over the range (-2, -1) U (1, 2)
-    a,b,c,d = -2, -1, 1, 2
-    
-    prob = np.array([b-a, d-c])
-    prob = prob/prob.sum()
-    
-    coefficients = np.array([np.random.choice([np.random.uniform(a,b), np.random.uniform(c,d)], p=prob) for _ in range(2*n_coeff+1)])
-    
-    #coefficients = np.random.uniform(low=-2.0,high=-1.0, size=2*n_coeff+1) # This is a 2*coeff + 1 long list
-    res = len(x)
-    # Initialize the function value
-    function_value = np.zeros([res,res]) #this way it returns a matrix
-    
-    #random rotation to avoid symmetric output
-    x1=np.cos(ang)*x - np.sin(ang) * y
-    y1=np.sin(ang)*x + np.cos(ang) * y
-    
-    # Compute the Fourier series
-    for i in range(n_coeff+1):
-        if (i == 0): # base case
-            function_value += coefficients[0]
-        else:
-            coinfilp = np.random.randint(0,2)
-            if coinfilp == 0:
-                function_value += coefficients[2*i - 1]*(np.pi/res)*x1**i 
-            if coinfilp == 1:
-                function_value += coefficients[2*i]*(np.pi/res)*y1**i
-            
-    #function_value += coefficients[0] + (np.pi*coefficients[1]/res)*x1 + (np.pi*coefficients[2]/res)*y1 + (np.pi*coefficients[3]/res)*x1**2 + (np.pi*coefficients[4]/res)*y1**2 + (np.pi*coefficients[5]/res)*x1**3 + (np.pi*coefficients[6]/res)*y1**3 + (np.pi*coefficients[7]/res)*x1**4 + (np.pi*coefficients[8]/res)*y1**4 + (np.pi*coefficients[9]/res)*x1**5 + (np.pi*coefficients[10]/res)*y1**5 +  (np.pi*coefficients[11]/res)*x1**6 + (np.pi*coefficients[12]/res)*y1**6 +  (np.pi*coefficients[13]/res)*x1**7 + (np.pi*coefficients[14]/res)*y1**7                                                             
-    function_value = function_value/np.max(abs(function_value))
-    
-    return (function_value+1)/2
-    
-    
-def rand_En(n_coeff_x, n_coeff_y, res, maxAng): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
+    # Randomize the angle
     
     ang=random.uniform(0,maxAng)
+    
+    # Instantiate the coordinates of the map. The maximum value is shifted by some random value to simulate partial imaging of the plate 
             
     x_min = random.uniform(0,1)
     x_max = x_min + random.uniform(0.5,1) # How much of the plate do we want to shine?
@@ -141,44 +123,21 @@ def rand_En(n_coeff_x, n_coeff_y, res, maxAng): #random quasi-energy (also calle
 
     X, Y = np.meshgrid(x, y)
     
+    # bounds are [0, np.pi]
+    
     return np.pi*generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y, ang)
  
-def rand_costheta(n_coeff_x, n_coeff_y ,res, maxAng): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
+# random nx
+# n_coeff_x - number of coefficents in the x direction 
+# n_coeff_y - number of coefficents in the y direction 
+# res - process resolution 
+# maxAng - maximum angle of rotation 
+
+def rand_nx(n_coeff_x, n_coeff_y ,res, maxAng): 
     
+    # Randomize the angle of rotation
     ang=random.uniform(0,maxAng)
-            
-    x_min = random.uniform(0,1)
-    x_max = x_min + random.uniform(0.5,1)
-    y_min = random.uniform(0,1)
-    y_max = y_min + random.uniform(0.5,1)
-            
-    x = np.linspace(x_min, x_max, res)
-    y = np.linspace(y_min, y_max, res)
-
-    X, Y = np.meshgrid(x, y)
-    
-    return np.pi*(generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y, ang))
-
-def rand_phi(n_coeff_x, n_coeff_y, res, maxAng): #random quasi-energy (also called Theta in previous paper), continuous 2d function, discretized on a res x res grid
-    
-    ang=random.uniform(0,maxAng)
-            
-    x_min = random.uniform(0,1)
-    x_max = x_min + random.uniform(0.5,1)
-    y_min = random.uniform(0,1)
-    y_max = y_min + random.uniform(0.5,1)
-            
-    x = np.linspace(x_min, x_max, res)
-    y = np.linspace(y_min, y_max, res)
-
-    X, Y = np.meshgrid(x, y)
-    
-    return 2*np.pi*(generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y,ang))
-
-def rand_nx(n_coeff_x, n_coeff_y ,res, maxAng): #random nx
-    
-    ang=random.uniform(0,maxAng)
-            
+   # Instantiate the coordinates of the map. The maximum value is shifted by some random value to simulate partial imaging of the plate 
     x_min = random.uniform(0,1)
     x_max = x_min + random.uniform(0.5,1) # How much of the plate do we want to shine?
     y_min = random.uniform(0,1)
@@ -191,10 +150,17 @@ def rand_nx(n_coeff_x, n_coeff_y ,res, maxAng): #random nx
     
     return generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y ,ang, minusOne = True)
 
+
+# random ny
+# n_coeff_x - number of coefficents in the x direction 
+# n_coeff_y - number of coefficents in the y direction 
+# res - process resolution 
+# maxAng - maximum angle of rotation 
+
 def rand_ny(n_coeff_x, n_coeff_y, res, maxAng): #random ny
-    
+    # Randomize the angle of rotation
     ang=random.uniform(0,maxAng)
-            
+    # Instantiate the coordinates of the map. The maximum value is shifted by some random value to simulate partial imaging of the plate 
     x_min = random.uniform(0,1)
     x_max = x_min + random.uniform(0.5,1) # How much of the plate do we want to shine?
     y_min = random.uniform(0,1)
@@ -207,10 +173,17 @@ def rand_ny(n_coeff_x, n_coeff_y, res, maxAng): #random ny
     
     return generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y, ang, minusOne = True)
 
-def rand_nz(n_coeff_x, n_coeff_y, res, maxAng): # rand nz
 
+# random nz
+# n_coeff_x - number of coefficents in the x direction 
+# n_coeff_y - number of coefficents in the y direction 
+# res - process resolution 
+# maxAng - maximum angle of rotation 
+
+def rand_nz(n_coeff_x, n_coeff_y, res, maxAng): # rand nz
+    # Randomize the angle of rotation
     ang=random.uniform(0,maxAng)
-            
+    # Instantiate the coordinates of the map. The maximum value is shifted by some random value to simulate partial imaging of the plate 
     x_min = random.uniform(0,1)
     x_max = x_min + random.uniform(0.5,1) # How much of the plate do we want to shine?
     y_min = random.uniform(0,1)
@@ -224,22 +197,151 @@ def rand_nz(n_coeff_x, n_coeff_y, res, maxAng): # rand nz
     return generate_random_function(X, Y,-1, 1, n_coeff_x, n_coeff_y, ang, minusOne = True)
 
 
-def Ugen(En,th,phi): #unitary through polar-coordinate parameters
-    mat=np.zeros([2,2],dtype=complex)
+
+        
+'''
+ FUNCTIONS FOR THE GENERATION OF (CASCADED) WAVEPLATES
+'''
+
+# Encodes the pixelwise process matrix of a waveplate
+# delta - waveplate retardance
+# theta - optic axis modulation 
+
+def waveGen(delta, theta):
+    mat = np.zeros([2,2], dtype=complex)
     
-    nx=np.sin(th)*np.cos(phi)
-    ny=np.sin(th)*np.sin(phi)
-    nz=np.cos(th)
-    
-    mat[0,0]=np.cos(En) - 1j*np.sin(En)*nz
-    mat[0,1]=-1j*np.sin(En)*(nx - 1j*ny)
-    mat[1,0]=-1j*np.sin(En)*(nx + 1j*ny)
-    mat[1,1]=np.cos(En) + 1j*np.sin(En)*nz
+    mat[0,0]=np.cos(delta/2)
+    mat[0,1] = 1j*np.sin(delta/2)*np.exp(-2j*theta) # theta is bounded up to pi
+    mat[1,0] = 1j*np.sin(delta/2)*np.exp(2j*theta) # theta is bounded up to pi
+    mat[1,1] = np.cos(delta/2)
     
     return mat
 
+# Generates the optic-axis modulation for the waveplate (ang is in degrees)
+# n_coeff_x - number of fourier freqs in the x- direction
+# n_coeff_y - number of fourier freqs in the y- direction 
+# res - resolution of process 
+# maxAng - maximum angle in which the process is rotated
+
+def rand_optic(n_coeff_x, n_coeff_y, res, maxAng):
+    ang = random.uniform(0,maxAng)
+    
+    x_min = random.uniform(0,1)
+    x_max = x_min + random.uniform(0.5,1)
+    y_min = random.uniform(0,1)
+    y_max = y_min + random.uniform(0.5,1)
+            
+    x = np.linspace(x_min, x_max, res)
+    y = np.linspace(y_min, y_max, res)
+
+    X, Y = np.meshgrid(x, y)
+    
+    return np.pi*generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y, ang)
+    
+# Cascade multiple waveplates together, thereby creating our unitary matrix
+# num - number of waveplates to cascade
+# n_coeff_x - number of fourier freqs in the x- direction
+# n_coeff_y - number of fourier freqs in the y- direction 
+# res - resolution of process 
+# maxAng - maximum angle in which the process is rotated 
+
+def casOptics(num, n_coeff_x, n_coeff_y, res, maxAng):
+    
+    unitary = np.identity(2, dtype=complex)
+    
+    theta_list = []
+    delta_list = []
+    
+    # First, create array of thetas and deltas
+    
+    for i in range(num):
+        theta = rand_optic(n_coeff_x, n_coeff_y, res, maxAng)
+        delta = random.uniform(0, 2*np.pi)
+        
+        theta_list.append(theta)
+        delta_list.append(delta)
+    
+    
+    return theta_list, delta_list
+
+# Complete function which generates the unitary for one or more waveplates and returns En, theta, phi
+
+def compute_waveplate(num_waveplate, n_coeff_x, n_coeff_y, res, maxAng):
+    
+    En = np.zeros([res, res])
+    thetapol = np.zeros([res, res])
+    phi = np.zeros([res, res])
+    
+    theta_list, delta_list = casOptics(num_waveplate, n_coeff_x, n_coeff_y, res, maxAng)
+    
+    for ind1 in range(res):
+        for ind2 in range(res):
+            # build up the waveplate
+            uSyn = np.identity(2, dtype=complex)
+            
+            for i in range(num_waveplate):
+                uSyn = np.dot(uSyn, waveGen(delta_list[i], theta_list[i][ind1][ind2]))
+            
+            En_pix = retrieve_En(uSyn)
+            #polar coordinates
+            thetapol_pix = retrieve_thetapol(uSyn, En_pix)
+            
+            phi_pix = retrieve_phi(uSyn, En_pix)
+            
+            if (phi_pix<0):
+                phi_pix += 2*np.pi
+                
+            En[ind1,ind2] = En_pix
+            thetapol[ind1,ind2] = thetapol_pix
+            phi[ind1,ind2] = phi_pix
+    
+    return En, thetapol, phi
+
+
+
+
+'''
+ FUNCTIONS TO RETRIEVE UNITARY PARAMETERS
+'''
+# Retrieves En (or big THETA)
+# unitary - unitary process matrix
+
+def retrieve_En(unitary):
+    return np.arccos(0.5*np.trace(unitary))
+
+# Retrieves nx (En must be computed for that unitary) 
+# unitary - unitary process matrix
+# En - Big theta unitary parameter
+
+def retrieve_nx(unitary, En):
+    return (1j/(2*np.sin(En)))*np.trace(unitary*s1)
+
+# Retrieves ny (En must be computed for that unitary) 
+# unitary - unitary process matrix
+# En - Big theta unitary parameter
+
+def retrieve_ny(unitary, En):
+    return (1j/(2*np.sin(En)))*np.trace(unitary*s2)
+
+# Retrieves nz (En must be computed for that unitary) 
+
+
+def retrieve_nz(unitary, En):
+    return (1j/(2*np.sin(En)))*np.trace(unitary*s3)
+
+# Retrives theta and phi for unitary (to map in the sphere)
+
+def retrieve_thetapol(unitary, En):
+    return np.arccos(retrieve_nz(unitary, En))
+
+def retrieve_phi(unitary,En):
+    nx = np.real(retrieve_nx(unitary, En))
+    ny = np.real(retrieve_ny(unitary, En))
+    return np.arctan2(ny,nx)
 
 # This is a special normalization function which handles normalization case by case
+# nx, ny, nz - unitary params in cartesian coordinates
+# sum_nx, sum_ny, sum_nz - sum of fourier frequencies in x- and y- directions 
 
 def norm_unitary(nx,ny,nz,sum_nx,sum_ny,sum_nz):
     
@@ -251,12 +353,12 @@ def norm_unitary(nx,ny,nz,sum_nx,sum_ny,sum_nz):
     nz_new = np.zeros((res,res))
     
     # To handle processes w/ two constant parameters, we filp a coin
+    
     roulette = np.random.randint(0,2)
     print(f"coin: {roulette}")
     
     if (sum_nx == 0 and sum_ny == 0 and sum_nz == 0) or (sum_nx > 0 and sum_ny > 0 and sum_nz > 0): # Normalize normally
         norm = np.sqrt(nx**2 + ny**2 + nz**2)
-        
         
         nx_new = nx/norm
         ny_new = ny/norm
@@ -297,176 +399,32 @@ def norm_unitary(nx,ny,nz,sum_nx,sum_ny,sum_nz):
         
     
     return nx_new, ny_new, nz_new
-        
 
-
-
-
-'''
- FUNCTIONS FOR THE GENERATION OF (CASCADED) WAVEPLATES
-'''
-
-# Encodes a waveplate
-
-def waveGen(delta, theta):
-    mat = np.zeros([2,2], dtype=complex)
-    
-    mat[0,0]=np.cos(delta/2)
-    mat[0,1] = 1j*np.sin(delta/2)*np.exp(-2j*theta) # theta is bounded up to pi
-    mat[1,0] = 1j*np.sin(delta/2)*np.exp(2j*theta) # theta is bounded up to pi
-    mat[1,1] = np.cos(delta/2)
-    
-    return mat
-
-# Generates the optic-axis modulation for the waveplate 
-# (ang is in degrees)
-
-def rand_optic(n_coeff_x, n_coeff_y, res, maxAng):
-    ang = random.uniform(0,maxAng)
-    
-    x_min = random.uniform(0,1)
-    x_max = x_min + random.uniform(0.5,1)
-    y_min = random.uniform(0,1)
-    y_max = y_min + random.uniform(0.5,1)
-            
-    x = np.linspace(x_min, x_max, res)
-    y = np.linspace(y_min, y_max, res)
-
-    X, Y = np.meshgrid(x, y)
-    
-    return np.pi*generate_random_function(X, Y, -1, 1, n_coeff_x, n_coeff_y, ang)
-    
-# Cascade multiple waveplates together, thereby creating our unitary matrix
-
-def casOptics(num, n_coeff_x, n_coeff_y, res, maxAng):
-    
-    unitary = np.identity(2, dtype=complex)
-    
-    theta_list = []
-    delta_list = []
-    
-    # First, create array of thetas and deltas
-    
-    for i in range(num):
-        theta = rand_optic(n_coeff_x, n_coeff_y, res, maxAng)
-        delta = random.uniform(0, 2*np.pi)
-        
-        theta_list.append(theta)
-        delta_list.append(delta)
-    
-    
-    return theta_list, delta_list
-
-'''
- FUNCTIONS TO RETRIEVE UNITARY PARAMETERS
-'''
-#  Retrieves En (or big THETA)
-
-def retrieve_En(unitary):
-    return np.arccos(0.5*np.trace(unitary))
-
-# Retrieves nx (En must be computed for that unitary) 
-
-def retrieve_nx(unitary, En):
-    return (1j/(2*np.sin(En)))*np.trace(unitary*s1)
-
-# Retrieves ny (En must be computed for that unitary) 
-
-def retrieve_ny(unitary, En):
-    return (1j/(2*np.sin(En)))*np.trace(unitary*s2)
-
-# Retrieves nz (En must be computed for that unitary) 
-
-def retrieve_nz(unitary, En):
-    return (1j/(2*np.sin(En)))*np.trace(unitary*s3)
-
-# Retrives theta and phi for unitary (to map in the sphere)
-
-def retrieve_thetapol(unitary, En):
-    return np.arccos(retrieve_nz(unitary, En))
-
-def retrieve_phi(unitary,En):
-    nx = np.real(retrieve_nx(unitary, En))
-    ny = np.real(retrieve_ny(unitary, En))
-    return np.arctan2(ny,nx)
-# Complete function which generates the unitary for one or more waveplates and returns En, theta, phi
-
-def compute_waveplate(num_waveplate, n_coeff_x, n_coeff_y, res, maxAng):
-    
-    En = np.zeros([res, res])
-    thetapol = np.zeros([res, res])
-    phi = np.zeros([res, res])
-    
-    theta_list, delta_list = casOptics(num_waveplate, n_coeff_x, n_coeff_y, res, maxAng)
-    
-    for ind1 in range(res):
-        for ind2 in range(res):
-            # build up the waveplate
-            uSyn = np.identity(2, dtype=complex)
-            
-            for i in range(num_waveplate):
-                uSyn = np.dot(uSyn, waveGen(delta_list[i], theta_list[i][ind1][ind2]))
-            
-            En_pix = retrieve_En(uSyn)
-            #polar coordinates
-            thetapol_pix = retrieve_thetapol(uSyn, En_pix)
-            
-            phi_pix = retrieve_phi(uSyn, En_pix)
-            
-            if (phi_pix<0):
-                phi_pix += 2*np.pi
-                
-            En[ind1,ind2] = En_pix
-            thetapol[ind1,ind2] = thetapol_pix
-            phi[ind1,ind2] = phi_pix
-    
-    return En, thetapol, phi
-
-# These functions are designed to work with the tensorflow architecture during the training process
-
-def UgenTF(En,th,phi): # Compute unitary from parameters - this time we work in tensors
-    nx=tf.cast(tf.math.sin(th)*tf.math.cos(phi), dtype=tf.complex64)
-    ny=tf.cast(tf.math.sin(th)*tf.math.sin(phi), dtype=tf.complex64)
-    nz=tf.cast(tf.math.cos(th), dtype=tf.complex64)
-    
-    cosEn = tf.cast(tf.math.cos(En), dtype=tf.complex64)
-    sinEn = tf.cast(tf.math.sin(En), dtype=tf.complex64)
-    
-    mat00=cosEn - 1j*sinEn*nz
-    mat01=-1j*sinEn*(nx - 1j*ny)
-    mat10=-1j*sinEn*(nx + 1j*ny)
-    mat11=cosEn + 1j*sinEn*nz
-    
-    mat = tf.concat([[[mat00,mat01]],[[mat10,mat11]]], 0)
-    
-    return mat
-
-
-def compFidTF(mat1, mat2): # Computes the fidelity between two unitaries
-    #prod=np.trace(np.dot(np.conjugate(mat1.T),mat2))
-    prod=tf.linalg.trace(tf.math.conj(tf.transpose(mat1))@mat2)
-    return 0.5*tf.math.abs(prod)
+# Unitary through polar-coordinate parameters. This function is applied on a single pixel, but there is a faster way of doing this
+# En, th, phi - the spherical unitary parameters
  
-def fidReconstructTF(num_pixs,y_true,y_pred,norm=False):
-    Fvals = []
-    # If normalization is true, modify the datagen so that we spit out modulated values
-    if (norm==True):
-        normOne = math.pi
-        normTwo = 2*math.pi
-    else:
-        normOne = 1
-        normTwo = 1
-    # Define function to compute fidelity 
-    for i in range(num_pixs):
-            for j in range(num_pixs):
-                thU = UgenTF(y_true[i,j,0], y_true[i, j,1], y_true[i,j,2])
-                expU = UgenTF(y_pred[i,j,0]/normOne, y_pred[i,j,1]/normOne, y_pred[i,j,2]/normTwo)
-                Fvals.append(compFidTF(thU,expU))
-    Fvals = tf.convert_to_tensor(Fvals)
+def Ugen(En,th,phi):
 
-    return Fvals
+    mat=np.zeros([2,2],dtype=complex)
+    
+    nx=np.sin(th)*np.cos(phi)
+    ny=np.sin(th)*np.sin(phi)
+    nz=np.cos(th)
+    
+    mat[0,0]=np.cos(En) - 1j*np.sin(En)*nz
+    mat[0,1]=-1j*np.sin(En)*(nx - 1j*ny)
+    mat[1,0]=-1j*np.sin(En)*(nx + 1j*ny)
+    mat[1,1]=np.cos(En) + 1j*np.sin(En)*nz
+    
+    return mat
 
-def measure(in_pol,out_pol,evo_op,noise): #polarimetric measurement with noise
+# polarimetric measurement with noise
+# in_pol - input polarization
+# out_pol - output polarization  
+# evo_op - unitary process matrix
+# noise - sigma parameter specifying the pixlewise gaussian noise
+
+def measure(in_pol,out_pol,evo_op,noise): # polarimetric measurement with noise
     
     action=np.dot(evo_op,in_pol)
     
@@ -483,6 +441,10 @@ def measure(in_pol,out_pol,evo_op,noise): #polarimetric measurement with noise
     
     return result
 
+# This applies noise to the states themselves (e.g. if what we project to is not exactly the polarization we want)
+# state - state to be perturbed
+# randNoise - upper bound for noise to be applied onto state
+
 def perturbState(state, randNoise):
     perturbingState = np.array([random.uniform(0, randNoise), random.uniform(0,randNoise)])
     newState = state + perturbingState
@@ -490,14 +452,13 @@ def perturbState(state, randNoise):
     normConst = np.sqrt(np.sum(np.abs(newState)**2))
     return newState/normConst
 
-def rotateState(state_name):
-    
-    if (state_name == 'L'):
-        newState = h
-    if (state_name == 'H'):
-        newState = l
-    
-    return newState
+
+# Performs the full set of pixelwise measurements on the unitary process. 
+# En, th, phi -- the spherical coordinate parameters 
+# noise - sigma parameter specifying gaussian pixelwise noise
+# stateNoise - upper bound for the uniformly sampled noise applied to the state
+# rotateBasis - do we apply a rotation of measurement basis?
+# sixMeasure - do we include a sixth measurement? 
 
 def pixel_measure(En,th,phi,noise, stateNoise, rotateBasis = False, sixMeasure = False):
     
@@ -529,6 +490,12 @@ def pixel_measure(En,th,phi,noise, stateNoise, rotateBasis = False, sixMeasure =
     
     return results
 
+# Performs the full set of measurements on the unitary process over the whole image. 
+# En, th, phi -- the spherical coordinate parameters 
+# noise - sigma parameter specifying gaussian pixelwise noise
+# stateNoise - upper bound for the uniformly sampled noise applied to the state
+# rotateBasis - do we apply a rotation of measurement basis?
+# sixMeasure - do we include a sixth measurement? 
 
 def full_measure(En,th,phi,res,noise, stateNoise, rotateBasis = False, sixMeasure = False): #measures each pixel and returns flattened res^2 X dim_in vector (dim_in=5)
 
@@ -542,6 +509,10 @@ def full_measure(En,th,phi,res,noise, stateNoise, rotateBasis = False, sixMeasur
             results[ind1,ind2,:]=pixel_measure(En[ind1,ind2],th[ind1,ind2],phi[ind1,ind2],noise, stateNoise, rotateBasis = rotateBasis, sixMeasure=sixMeasure)
         
     return results
+
+# applies a reordering of measurements, implementing a rotation of basis. Only works for 5 measurements 
+# full_meas - array of five measurements
+# res - resolution of process matrix. 
 
 def full_measure_reorder(full_meas, res):
     temp_full_meas = np.zeros([res,res,5])

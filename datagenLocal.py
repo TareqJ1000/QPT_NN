@@ -1,9 +1,15 @@
-# In this code, we generate the data locally so that we may speed up the processing of data in the learning process. 
+'''
+datagenLocal
+
+Computes the fixed dataset for the training of our networks
+'''
 
 import argparse
 import tensorflow as tf
-from dataGenNew import rand_En, rand_costheta, rand_phi, full_measure, compute_waveplate, norm_unitary 
+
+from dataGenNew import rand_En, full_measure, compute_waveplate, norm_unitary 
 from dataGenNew import rand_nx, rand_ny, rand_nz
+
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -22,7 +28,7 @@ parser.add_argument('--ii', dest='ii', type=int,
 args = parser.parse_args()
 shift = args.ii
 
-shift = 0
+#shift = 0
 
 # Load configuration file
 
@@ -31,49 +37,50 @@ cnfg = yaml.load(stream, Loader=Loader)
 
 # Define some initial parameters for the generation process
 
-total = eval(cnfg['total'])
-res = cnfg['num_pixs']
-noise = cnfg['noise']
-stateNoise = cnfg['stateNoise']
-maxAng = math.radians(cnfg['maxAng'])
-isWaveplate = cnfg['isWaveplate']
-max_waveplates = cnfg['max_waveplate']
-sixMeasure = cnfg['sixMeasure']
+total = eval(cnfg['total']) # Total number of examples in the dataset
+res = cnfg['num_pixs'] # image resolution (in format res x res)
+noise = cnfg['noise'] # sigma for noise
+stateNoise = cnfg['stateNoise'] # * DEPRECEATED * sigma for state noise
+maxAng = math.radians(cnfg['maxAng']) # maximum angle of rotation
+isWaveplate = cnfg['isWaveplate'] # Do we generate waveplates
+max_waveplates = cnfg['max_waveplate'] # Maximum number of waveplates 
+sixMeasure = cnfg['sixMeasure'] # Do we include a sixth measurement?
+filename = cnfg['filename'] # Directory name of dataset
+# applyInverse = cnfg['apply_inversion'] # Do we apply a harder inversion on the dataset?
+n_coeff_low = cnfg['n_coeffs_low'] # lower bound for the number of fourier frequencies in the x- or y- directions
+n_coeff_high = cnfg['n_coeffs_high'] # Upper bound for the number of fourier frequencies in the x- or y- directions
 
-filename = cnfg['filename']
-applyInverse = cnfg['apply_inversion']
+# Instantiate the input/output arrays X/y that will hold our dataset. 
 
-n_coeff_low = cnfg['n_coeffs_low']
-n_coeff_high = cnfg['n_coeffs_high']
-
-'''
-# Now to generate examples. Let's update this so that there is no ambiguity between train and test dataset examples'
-'''
-
-if (sixMeasure):
+if (sixMeasure): # Include 6 measurements
     X = np.empty((int(total), res, res, 6))
-else:
+else: # Include 5 measurements
     X = np.empty((int(total), res, res, 5))
     
+# Holds the unitary parameters in spherical coordinates
+
 y = np.empty((int(total), res, res, 3))
 
 for ii in range(int(total)):
-    num_waveplates = np.random.randint(low=1, high=max_waveplates+1)
     
+    # Case 1: We generate stacks of up to max_waveplates optical waveplates
     if(isWaveplate):
+        num_waveplates = np.random.randint(low=1, high=max_waveplates+1)
+        
+        # Compute the spherical unitary parameters associated with the process. Note that the # of fourier frequencies are randomized in either direction. 
         a1, a2, a3 = compute_waveplate(num_waveplates, np.random.randint(low=n_coeff_low, high=n_coeff_high),np.random.randint(low=n_coeff_low, high=cnfg['n_coeffs_high']), res, maxAng)
         
+        # If the first pixel of the process falls on the south pole, apply inversion so that it is on the north pole. 
         if a2[0,0] > np.pi/2:
             a2 = np.pi - a2
-            if (applyInverse):
-                a1 = np.pi - a1
-                a3 = 2*np.pi - a3
         
+        # If theta is very close to the equator of the bloch sphere, then we also invert phi. This, in particular, confines nz=0 processes to one quadrant of the northern bloch hemisphere. 
         if (a2[0,0] < (np.pi/2 + noise)  and a2[0,0] > (np.pi/2 - noise)) and a3[0,0] > np.pi:
             a3 = 2*np.pi - a3
         
-    else: 
-
+    else:
+        # We generate the unitary params of a random synthetic process from periodic functions
+        
         a1=rand_En(np.random.randint(low=n_coeff_low, high=n_coeff_high),np.random.randint(low=n_coeff_low, high=n_coeff_high),res, maxAng) 
         
         # Let's define a list which stores # of coefficents featured by each sample 
@@ -94,18 +101,13 @@ for ii in range(int(total)):
         ny = rand_ny(freqs_ny[0], freqs_ny[1], res, maxAng)
         nz = rand_nz(freqs_nz[0], freqs_nz[1], res, maxAng)
         
-        # First, normalize cartesian coordinates 
+        # normalize cartesian coordinates according to a specific rule depending if the params are constant or not. 
         
         nx,ny,nz = norm_unitary(nx, ny, nz, sum_nx, sum_ny, sum_nz)
         
-        # Perform the inversion of the process. This is either a partial inversion on nz, or a full inversion of the process depending on applyInverse
-        
+        # Perform the inversion of the process. Here we perform a false inversion of sorts on processes below the bloch sphere equator, but the net effect is that we want to put everything in the bloch sphere
         if nz[0,0] < 0:
             nz = -nz
-            if(applyInverse):
-                a1 = (np.pi - a1)
-                nx = -nx
-                ny = -ny
                 
         # If nz is not small (depending on the noise), or if nx is positive, then we invert nx
         if (nz[0,0] < noise and nz[0,0] > -noise) and nx[0,0] < 0:
@@ -120,10 +122,14 @@ for ii in range(int(total)):
             for j in range(res):
                 if a3[i,j] < 0:
                     a3[i,j] += 2*np.pi
-        
+    
+    # Regardless of which type of process we choose to gen, save it to the output array 
+    
     y[ii,:,:,0] = a1
     y[ii,:,:,1] = a2
     y[ii,:,:,2] = a3
+    
+    # With the unitary parameters determined, perform synthetic measurements and save to input array 
         
     X[ii] = full_measure(a1,a2,a3,res,noise, stateNoise, sixMeasure=sixMeasure)
     

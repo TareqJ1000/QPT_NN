@@ -10,9 +10,9 @@ isWaveplate: False
 max_waveplate: 2
 maxAng: 5
 apply_inversion: False
-sixMeasure: True
+sixMeasure: False
 
-filename: '64by64_150_fullDataset'
+filename: '64by64_200_fullDataset_fiveMeas'
 
 
 

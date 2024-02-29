@@ -7,20 +7,20 @@ model_path: 'models/64Net_test'
 model_name: '64Net_test'
 load_model: False
 old_model_name: 64Net_wps_10percent
-nnType: 7
+nnType: 2
 num_pixs: 64
 batchSize: 8
 kernelSize: 3
 dropRate: 0.2
-layers: 4
+layers: 1
 sigma: 0.00
 enableGPU: True
 enableDataGen: False
 shuffle: True
-sixMeasure: True
+sixMeasure: False
 valSplit: 0.85
 
-datafile: 64by64_150_fullDataset.pkl
+datafile: 64by64_200_fullDataset_fiveMeas.pkl
 
 freezeLayers: False
 freeze_policy_begin: 0

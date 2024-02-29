@@ -5,7 +5,6 @@ import numpy as np
 import pickle
 
 import tensorflow as tf
-#import tensorflow_addons as tfa
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
 
@@ -17,14 +16,12 @@ from tensorflow.keras.layers import Reshape
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras import optimizers
 
-
 from keras import backend as K
 
-# This is code that generates data batch-wise
-from dataGenNew import DataGenerator, fidReconstructTF, FixedDataGenerator
+from dataGenNew import DataGenerator, FixedDataGenerator
 from UNetArchitecture import uNet
-import time
 import math 
+
 # This is so that we get live feedback on how well our network is learning at each epoch. Credit to this medium article (https://medium.com/geekculture/how-to-plot-model-loss-while-training-in-tensorflow-9fa1a1875a5_)
 
 class PlotLearning(tf.keras.callbacks.Callback):
@@ -32,9 +29,8 @@ class PlotLearning(tf.keras.callbacks.Callback):
     Callback to plot the learning curves of the model during training.
     """
     
-    def __init__(self, enableGPU):
+    def __init__(self):
         super(PlotLearning,self).__init__()
-        self.enableGPU = enableGPU
     
     def on_train_begin(self, logs={}):
         self.metrics = {}
@@ -50,40 +46,19 @@ class PlotLearning(tf.keras.callbacks.Callback):
                 self.metrics[metric].append(logs.get(metric))
             else:
                 self.metrics[metric] = [logs.get(metric)]
+   
+        f, axs = plt.subplots(1, 1, figsize=(5,5))
+        clear_output(wait=True)
         
-        # Plotting
-        # metrics = [x for x in logs if 'val' not in x]
-        
-        if (self.enableGPU): # we only plot the loss
-            f, axs = plt.subplots(1, 1, figsize=(5,5))
-            clear_output(wait=True)
-            
-            axs.plot(range(1, epoch + 2), 
-                    self.metrics['loss'], 
-                    label='loss')
-            axs.plot(range(1, epoch + 2), 
-                    self.metrics['val_loss'], 
-                    label='val_loss')
-    
-            axs.legend()
-            axs.grid()
-            
-        else: # Make plots for the whole set of metrics
-            f, axs = plt.subplots(1, 2, figsize=(5,5))
-            clear_output(wait=True)
-        
-            axs[0].plot(range(1, epoch + 2), 
+        axs.plot(range(1, epoch + 2), 
                 self.metrics['loss'], 
                 label='loss')
-            axs[0].plot(range(1, epoch + 2), 
+        axs.plot(range(1, epoch + 2), 
                 self.metrics['val_loss'], 
                 label='val_loss')
-            axs[1].plot(range(1,epoch+2), self.metrics['minMean'], label='avg_Fid')
-            axs[1].plot(range(1,epoch+2), self.metrics['val_minMean'], label ='avg_fid_val')
-            axs[0].legend()
-            axs[0].grid()
-            axs[1].legend()
-            axs[1].grid()
+
+        axs.legend()
+        axs.grid()
             
         model_name = self.model.name
         directory = f'plots/{model_name}'
@@ -94,7 +69,8 @@ class PlotLearning(tf.keras.callbacks.Callback):
         plt.savefig(directory + f'/epochs_{epoch}.png')
         print('Saved plot of most recent training epoch to disk')
     
-    
+
+# Class which holds the NN model 
 
 class ff_network(tf.Module):
     def __init__ (self, size_of_input, size_of_output, type, name, kernelSize=3, dropRate = 0.1, layers = 1, sixMeasure=False): # This initializes the neural network with a certain chosen architecture
@@ -130,47 +106,84 @@ class ff_network(tf.Module):
         res = self.mynn(x)
         return res
     
-# Custom loss function that reconstructs the fidelity from predicted output parameters and 
-# computes 1 - average of all fidelities in the batch 
+# Sets of functions which engineers the map fidelity loss function. 
 
-def avg_fidelity_loss(num_pixs):  
-    def minMean(y_true, y_pred):
-            lets_go = tf.map_fn(lambda ind: fidReconstructTF(num_pixs,ind[0],ind[1]), elems=(y_true,y_pred), dtype=(tf.float32, tf.float32), fn_output_signature=tf.float32)
-            mean_loss = tf.reduce_mean(lets_go)
-            #tf.print(mean_loss)
-            return mean_loss
-    return minMean 
+# Returns four N x N x 2 x 2 matrices. Each matrix encodes a different element in a typical 2 x 2 array. 
+# batch_size - size of training batch 
+# N - image resolution
 
-# Custom metric which evaluates the network's performance on an ancillary dataset
-# consisting of just normal examples
+def get_full_pixelwise(batch_size, N):
+    
+    part00 = tf.experimental.numpy.full((batch_size,N,N,2,2), [[1,0], [0,0]], dtype=tf.complex64)
+    part01 = tf.experimental.numpy.full((batch_size,N,N,2,2), [[0,1], [0,0]], dtype=tf.complex64)
+    part10 = tf.experimental.numpy.full((batch_size,N,N,2,2), [[0,0], [1,0]], dtype=tf.complex64)
+    part11 = tf.experimental.numpy.full((batch_size,N,N,2,2), [[0,0], [0,1]], dtype=tf.complex64)
+    
+    return part00, part01, part10, part11
 
-def avg_norm_loss(num_pixs,X_sup, y_sup, model):  
-    def minMeanNormal(y_true, y_pred):
-            # Ask the model to make predictions on the supplementary dataset
-            y_supPred = model(X_sup)
-            # compute and report the mean fidelity reconstruction for this dataset
-            lets_go = tf.map_fn(lambda ind: fidReconstructTF(num_pixs,ind[0],ind[1]), elems=(y_sup,y_supPred), dtype=(tf.float32, tf.float32), fn_output_signature=tf.float32)
-            mean_loss = tf.reduce_mean(lets_go)
-            
-            return mean_loss
-    return minMeanNormal 
+# We compute the matrix elements corresponding to a generic SU(2) operator. Passing the full parameter map directly returns a N x N matrix mapping each parameter map pixel to the corresponding transformation
+# En, th, phi -- the spherical unitary parameters
 
-# Custom metric designed to teach the neural network the cyclicality of our design. Taken from 
+def Ugen_elems(En, th, phi):
+    
+    # First, convert from spherical to cartesian
+    
+    nx=tf.cast(tf.math.sin(th)*tf.math.cos(phi), dtype=tf.complex64)
+    ny=tf.cast(tf.math.sin(th)*tf.math.sin(phi), dtype=tf.complex64)
+    nz=tf.cast(tf.math.cos(th), dtype=tf.complex64)
+    
+    cosEn = tf.cast(tf.math.cos(En), dtype=tf.complex64)
+    sinEn = tf.cast(tf.math.sin(En), dtype=tf.complex64)
+    
+    # Now, calculate the individual elements 
+    
+    mat00 = cosEn - 1j*sinEn*nz
+    mat01 = -1j*sinEn*(nx-1j*ny)
+    mat10 = -1j*sinEn*(nx + 1j*ny)
+    mat11 = cosEn + 1j*sinEn*nz
+    
+    return mat00, mat01, mat10, mat11
+
+# Computes the map fidelity between the true (y_true) and predicted (y_pred) process.
+# We optimize, specifically, the map infidelity (1-mapFid)
+
+def mapFidLoss(y_true, y_pred):
+    len_batch = tf.shape(y_true)[0]
+    res = tf.shape(y_true[0,:,:,0])[0]
+    
+    # We will modify this to deal with bigger tensorflow size
+    
+    # For ease of readability, let's formally state what each variable is 
+    En_th, theta_th, phi_th = y_true[:,:,:,0], y_true[:,:,:,1], y_true[:,:,:,2]
+    En_rec, theta_rec, phi_rec = y_pred[:,:,:,0], y_pred[:,:,:,1], y_pred[:,:,:,2]
+    
+    # Compute the elements of the theoretical and reconstructed unitary process matrix at each pixel of the image
+    mat00_th, mat01_th, mat10_th, mat11_th = Ugen_elems(En_th, theta_th, phi_th)
+    mat00_rec, mat01_rec, mat10_rec, mat11_rec = Ugen_elems(En_rec, theta_rec, phi_rec)
+    
+    # This is towards creating the 2 X 2 matrix on each of the pixels -- we essentially compute |0><0|, |0><1|, |1><0|, and |1><1| for each pixel. 
+    Uth_part00, Uth_part01, Uth_part10, Uth_part11 = get_full_pixelwise(len_batch, res)
+    Urec_part00, Urec_part01, Urec_part10, Urec_part11 = get_full_pixelwise(len_batch, res)
+
+    # Now, perform elementwise multiplication using these 'part' matrices. This completes the reconstruction of the process matrix at each pixel.  
+    Uth_complete = Uth_part00*mat00_th[:,:,:,None,None] + Uth_part01*mat01_th[:, :,:,None,None] + Uth_part10*mat10_th[:, :,:,None,None] +  Uth_part11*mat11_th[:, :,:,None,None]
+    Urec_complete = Urec_part00*mat00_rec[:, :,:,None,None] + Urec_part01*mat01_rec[:, :,:,None,None] + Urec_part10*mat10_rec[:, :,:,None,None] +  Urec_part11*mat11_rec[:, :,:,None,None]
+    
+    # Now compute the pixelwise map fidelity 
+    mat1 = tf.math.conj(tf.transpose(Uth_complete, perm = (0,1,2,4,3)))
+    mat2 = Urec_complete 
+    prod = mat1 @ mat2
+    Stot = tf.math.reduce_sum(prod, axis=(1,2))
+    tot_trace = tf.linalg.trace(Stot)
+    norm_trace = tf.cast(2*res**2, tf.float32)
+    
+    return 1 - tf.divide(abs(tot_trace), norm_trace)
+
+
+# (* DEPRECEATED *) Custom metric designed to teach the neural network the cyclicality of our design. Taken from 
 # https://stackoverflow.com/questions/37527832/keras-cost-function-for-cyclic-outputs
 
-
-# This applies the cyclic MSE to the last index only (which is meant to be phi). En and theta are non periodic, so they do not get the same treatment
-def mse_cyclic(y_true, y_pred): 
-    # We assemble the penultimate array elementwise
-    part_one = K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0]))
-    part_two = K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1]))
-    part_three = K.mean(
-        K.minimum(K.square(y_pred[:,:,:,2]-y_true[:,:,:,2]), 
-                  K.minimum(K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] + 2*np.pi), K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] - 2*np.pi))))
-   
-    return tf.stack([part_one, part_two, part_three], axis=0)
-
-def mse_cyclic_2(y_true, y_pred):
+def mse_cyclic(y_true, y_pred):
     # We assemble the penultimate array elementwise
     part_one = K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0]))
     part_two = K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1]))
@@ -183,47 +196,11 @@ def mse_cyclic_2(y_true, y_pred):
     return mean_loss
 
 
-def mse_cyclic_3(y_true, y_pred):
-    # New: let's account for the possibility that the network may instead predict the inverse process
-    a1_inverse = np.pi - y_true[:,:,:,0]
-    a2_inverse = np.pi - y_true[:,:,:,1]
-    a3_inverse = 2*np.pi - y_true[:,:,:,2]
-    # Now, as before, compute the MSE elementwise
-    part_one = K.minimum(K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0])), K.mean(K.square(y_pred[:,:,:,0]-a1_inverse))) 
-    part_two = K.minimum(K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1])), K.mean(K.square(y_pred[:,:,:,1]-a2_inverse))) 
-    part_three = K.minimum(
-        K.mean(K.minimum(K.square(y_pred[:,:,:,2]-y_true[:,:,:,2]), 
-                  K.minimum(K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] + 2*np.pi), K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] - 2*np.pi)))), 
-        K.mean(K.minimum(K.square(y_pred[:,:,:,2]-a3_inverse), 
-                  K.minimum(K.square(y_pred[:,:,:,2] - a3_inverse + 2*np.pi), K.square(y_pred[:,:,:,2] - a3_inverse - 2*np.pi))))
-        )
-    
-    # Compute the average of losses for each array
-    
-    loss_array = tf.stack([part_one, part_two, part_three], axis=0)
-    mean_loss = K.mean(loss_array, axis=0)
-    return mean_loss
-
-def mse_cyclic_4(y_true, y_pred):
-    # We assemble the penultimate array elementwise
-    part_one = K.mean(K.square(y_pred[:,:,:,0]-y_true[:,:,:,0]))
-    part_two = K.mean(K.square(y_pred[:,:,:,1]-y_true[:,:,:,1]))
-    part_three = K.mean(
-        K.minimum(K.square(y_pred[:,:,:,2]-y_true[:,:,:,2]), 
-                  K.minimum(K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] + 1), K.square(y_pred[:,:,:,2] - y_true[:,:,:,2] - 1))))
-    loss_array = tf.stack([part_one, part_two, part_three], axis=0)
-    mean_loss = K.mean(loss_array, axis=0)
-    
-    return mean_loss
-
-def mse_cyclic_single(y_true, y_pred): # Here, we now assume that the data is normalized, and we apply on a SINGLE neural network. 
-    return K.mean(
-        K.minimum(K.square(y_pred[:,:,:]-y_true[:,:,:]), 
-                  K.minimum(K.square(y_pred[:,:,:] - y_true[:,:,:] + 1), K.square(y_pred[:,:,:] - y_true[:,:,:] - 1))))
-    
-
-
-def loadData(filename, trainPercent): # This supports pickle only for now. This also divides the total dataset into training and testing, allowing for easy control of the split.  
+# Loads the complete training dataset and splits it up into training and testing according to a train percentange
+# filename  -- directory name
+# trainPercent -- percentage of data that is assigned for training. 
+ 
+def loadData(filename, trainPercent): 
     
     file = open(filename,'rb')
     X,y = pickle.load(file)
@@ -262,8 +239,14 @@ def loadData(filename, trainPercent): # This supports pickle only for now. This 
 
     return X_train, y_train, X_test, y_test
 
+
+# The main function which prepares the dataset and model for training. 
+# config -- configuration file (loaded from the yaml files in the configs folder)
+# model - the model to be trained. 
+
 def train_network(config, model):
-    
+
+    # Load (hyper)parameters
     init_lr = eval(config['init_lr']) # staring learn rate
     min_lr = eval(config['min_lr']) # lower bound on learn rate
     epochs_to_update = config['epochs_to_update'] # Number of epochs needed to check condition again 
@@ -274,64 +257,41 @@ def train_network(config, model):
     num_pixs = config['num_pixs'] # Resolution of images
     model_name = config['model_name'] # Name of model being trained
     valSplit = config['valSplit'] # Train:Test split (for fixed Dataset)
-    enableGPU = config['enableGPU'] # Do we compute the average fidelity of our results (GPU disabled)? 
-    
     enableDataGen = config['enableDataGen'] # Do we use the data generator? 
     
-    # Load up an old model (if True)
-    
+    # Load a pre-trained model (if it exists)
     if (config['load_model']):
         print('loading weights from old data...')
-        model.mynn = tf.keras.models.load_model(config['old_model_name'], custom_objects={'math': math, 'minMean': avg_fidelity_loss, 'minMeanNormal':avg_norm_loss, 'mse_cyclic_2':mse_cyclic_2, 'mse_cyclic_4': mse_cyclic_4}, compile=True)
-        #model.mynn.load_weights()
+        model.mynn = tf.keras.models.load_model(config['old_model_name'], custom_objects={'math': math, 'mse_cyclic':mse_cyclic, 'mapFidLoss': mapFidLoss}, compile=True)
     
     if not os.path.exists(model_path):
         os.makedirs(model_path)
     
+    # We create a checkpoint of the model at every epoch
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath = model_path, save_weights_only=False, verbose=1) # callbacks 
     
-    adam_optimizer = optimizers.Adam(learning_rate=init_lr)
+    # Learning rate adapted subject to the validation loss, patience, and factor
     reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor = lr_factor, patience = epochs_to_update, min_lr = min_lr, verbose = 1)
     
-    # If GPU is enabled, then we only compute the loss of our network
-    metricList = []
-    #enableGPU = False
-    if (enableGPU==False):
-        metricList = [avg_fidelity_loss(num_pixs)]
-
-    model.mynn.compile(loss=mse_cyclic_3, optimizer=adam_optimizer, metrics=metricList)
-    
-    
-    #if (config['load_model']):
-        #print('loading weights from old data...')
-        
-        #model.mynn = tf.keras.models.load_model(config['old_model_name'], custom_objects={'math': math, 'minMean': avg_fidelity_loss, 'minMeanNormal':avg_norm_loss, 'mse_cyclic_2':mse_cyclic_2, 'mse_cyclic_4': mse_cyclic_4}, compile=True)
-       # model.mynn.load_weights()
+    # initialize optimizer and compile model
+    adam_optimizer = optimizers.Adam(learning_rate=init_lr)
+    model.mynn.compile(loss=mapFidLoss, optimizer=adam_optimizer)
     
     model.mynn.summary()
     print("Let us begin with the training!")
     
-    # for tensorboard purposes, define log directory and callback
-    # log_dir = 'logs'
-    # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-    
-    if not enableDataGen:
-    
-        # Load up the dataset, then split into test and train according to trainPercent
+    if not enableDataGen: # Generates data in real time
         X_train, y_train, X_test, y_test = loadData(config['datafile'], valSplit)
-    
         shuffle = config['shuffle']
         sigma = config['sigma']
-        
         trainGen = FixedDataGenerator(X_train, y_train, batch_size=batchSize, shuffle=shuffle, sigma=sigma)
         validationGen = FixedDataGenerator(X_test, y_test, batch_size=batchSize, shuffle=shuffle, sigma=sigma)
-        
-        history = model.mynn.fit(trainGen, validation_data=validationGen, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
-    else:
+        history = model.mynn.fit(trainGen, validation_data=validationGen, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning])
+   
+    else: # Loads from a pretrained dataset. 
         trainGen = DataGenerator(**config['train_params'])
         validationGen = DataGenerator(**config['val_params'])
-    
-        history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning(enableGPU)])
+        history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning])
 
     # save trained model at the very end
     model_json = model.mynn.to_json()
