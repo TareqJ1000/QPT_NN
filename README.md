@@ -15,7 +15,7 @@ This code was used principally in a Slurm-based environment provided by Compute 
 - startup_train runs train.py (this requests the use of multiple GPU nodes)
 - startup_datamash_simple runs datamash_simple.py (this requests the use of CPU nodes)
 
-It is possible to run multiple instances of the above process in parallel by configuring or adding the --array line in each script.  
+It is possible to run multiple instances of the above process in parallel by configuring or adding the --array line in each script, then modifying the .yaml names with an integer at the end (assume base 0 numbering).  
 
 # Data Analysis
 - The reconstruct_process.ipynb loads a neural network, loaded from the models folder, trained from our scheme to reconstruct select processes synthetically (loaded from theoretical_data folder) and with real experimental data (found in the experimental_data folder). 

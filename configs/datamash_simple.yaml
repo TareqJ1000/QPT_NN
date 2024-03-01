@@ -1,0 +1,14 @@
+dataset_1: '64by64_50k_sixMeasure_train.pkl' 
+dataset_2: '64by64_50k_sixMeasure_test.pkl'
+fused_dataset_name: '64by64_50k_sixMeasure'
+
+
+
+
+
+
+
+
+
+
+
