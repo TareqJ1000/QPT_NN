@@ -1,0 +1,13 @@
+tensorflow 
+keras
+pyyaml 
+matplotlib 
+seaborn 
+numpy 
+pickle 
+IPython 
+math 
+os
+
+
+

@@ -1,0 +1,24 @@
+#!/bin/bash -l
+#SBATCH --array=0
+#SBATCH --gpus-per-node=2
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --account=def-ekarimi
+# Standard output and error:
+#SBATCH -o ./jobsTrainOut/out.%j
+#SBATCH -e ./jobsTrainErr/err.%j
+#SBATCH -D ./
+#SBATCH -J six_measure
+
+#srun ./script $SLURM_ARRAY_TASK_ID 
+
+# memory
+#SBATCH --mem=96GB
+#SBATCH --time=72:00:00
+
+module load python scipy-stack
+module load cuda cudnn
+source newenv/bin/activate
+
+srun python train.py --ii $SLURM_ARRAY_TASK_ID

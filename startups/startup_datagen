@@ -1,0 +1,23 @@
+#!/bin/bash -l
+#SBATCH --array=0-4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --account=def-ekarimi
+# Standard output and error
+#SBATCH -o ./jobsTrainOut/out.%j
+#SBATCH -e ./jobsTrainErr/err.%j
+#SBATCH -D ./
+#SBATCH -J wavePlates
+
+#srun ./script $SLURM_ARRAY_TASK_ID 
+
+# memory
+#SBATCH --mem=64GB
+#SBATCH --time=60:00:00
+
+module load python scipy-stack
+module load cuda cudnn
+source venv/bin/activate
+
+srun python datagenLocal.py --ii $SLURM_ARRAY_TASK_ID

@@ -1,0 +1,23 @@
+#!/bin/bash -l
+#SBATCH --array=0
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --account=def-ekarimi
+# Standard output and error
+#SBATCH -o ./jobsTrainOut/out.%j
+#SBATCH -e ./jobsTrainErr/err.%j
+#SBATCH -D ./
+#SBATCH -J datamash
+
+#srun ./script $SLURM_ARRAY_TASK_ID 
+
+# memory
+#SBATCH --mem=128GB
+#SBATCH --time=4:00:00
+
+module load python scipy-stack
+module load cuda cudnn
+source newenv/bin/activate
+
+srun python datamash_simple.py --ii $SLURM_ARRAY_TASK_ID
