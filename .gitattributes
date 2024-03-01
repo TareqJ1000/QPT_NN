@@ -9,3 +9,7 @@
 *.pb filter=lfs diff=lfs merge=lfs -text
 *.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
 *.index filter=lfs diff=lfs merge=lfs -text
+*.txt filter=lfs diff=lfs merge=lfs -text
+/startups/startup_datagen filter=lfs diff=lfs merge=lfs -text
+/startups/startup_datamash_simple filter=lfs diff=lfs merge=lfs -text
+/startups/startup_train_MultiGPU filter=lfs diff=lfs merge=lfs -text
