@@ -4,9 +4,9 @@ Code used for the generation of synthetic experiments for the Quantum Process To
 # How to use
 - DatagenLocal.py generates synthetic datasets of periodic/waveplate-based SU(2) processes.
 - train.py creates and trains the neural network model. Can either use a pre-generated dataset, or can generate the experiments in real-time. 
-- datamash_simple.py is a relatively simple script that combines two datasets together. This is used, in particular, to create augumented datasets for two-step training 
+- datamash_simple.py is a relatively simple script that combines two datasets together. This is used, in particular, to create augmented datasets for two-step training 
 
-Both codes requires configuration of, respectively, the 'datagen.yaml', 'train.yaml', and 'datamash_simple.yaml' configuration files, which can be found in the configs folder. The files can be configured to generate experiments and to train networks of arbitrary complexity and to the users liking. 
+Both codes require configuration of, respectively, the 'datagen.yaml', 'train.yaml', and 'datamash_simple.yaml' configuration files, which can be found in the configs folder. The files can be configured to generate experiments and to train networks of arbitrary complexity and to the users liking. 
 
 # SLURM
 This code was used principally in a Slurm-based environment provided by Compute Canada. We provide the scripts used to run the code therein in the startups folder. In the command line, executing sbatch <name of slurm script> runs the script, where: 
