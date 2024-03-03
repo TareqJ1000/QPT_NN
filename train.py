@@ -9,7 +9,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 # This is code that generates data batch-wise
-from dataGenNew import DataGenerator
+from datagen import DataGenerator
 
 from neuralnet import ff_network, train_network
 

@@ -18,7 +18,7 @@ from tensorflow.keras import optimizers
 
 from keras import backend as K
 
-from dataGenNew import DataGenerator, FixedDataGenerator
+from datagen import DataGenerator, FixedDataGenerator
 from UNetArchitecture import uNet
 import math 
 

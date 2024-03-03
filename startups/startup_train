@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH --array=0
-#SBATCH --gpus-per-node=2
+#SBATCH --gpus-per-node=2 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -8,7 +8,7 @@
 #SBATCH -o ./jobsTrainOut/out.%j
 #SBATCH -e ./jobsTrainErr/err.%j
 #SBATCH -D ./
-#SBATCH -J six_measure
+#SBATCH -J qpt_train
 
 #srun ./script $SLURM_ARRAY_TASK_ID 
 
