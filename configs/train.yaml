@@ -3,23 +3,23 @@ min_lr: '1.e-7'
 epochs_to_update: 15
 lr_factor: 0.1
 num_of_epochs: 200
-model_path: 'models/mapFid_sixMeas_2Lay'
-model_name: 'mapFid_sixMeas_2Lay'
+model_path: 'models/u_network'
+model_name: 'u_network'
 load_model: False
-old_model_name: mapFid_50k
+old_model_name: u_network_old
 nnType: 0
 num_pixs: 64
 batchSize: 8
 kernelSize: 3
 dropRate: 0.2
-layers: 4
+layers: 1
 sigma: 0.00
 enableGPU: True
 enableDataGen: False
 shuffle: True
 sixMeasure: True
 
-datafile: 64by64_50k_sixMeasure.pkl
+datafile: 64by64_1k.pkl
 
 freezeLayers: False
 freeze_policy_begin: 0

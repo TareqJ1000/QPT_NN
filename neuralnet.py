@@ -75,36 +75,8 @@ class PlotLearning(tf.keras.callbacks.Callback):
 class ff_network(tf.Module):
     def __init__ (self, size_of_input, size_of_output, type, name, kernelSize=3, dropRate = 0.1, layers = 1, sixMeasure=False): # This initializes the neural network with a certain chosen architecture
         super(ff_network, self).__init__()
-        
-        if (type==0): # This is the original architecture of the network as seen in the paper. 
-        
-            self.mynn = Sequential([Conv2D(4,(3,3), input_shape=(size_of_input, size_of_input, 5), activation=LeakyReLU(alpha=0.1)),
-                                    Conv2D(3,(3,3), activation=LeakyReLU(alpha=0.1)), 
-                                    tf.keras.layers.Flatten(), 
-                                    Dense(500, activation=LeakyReLU(alpha=0.1)),
-                                    Dense(size_of_input*size_of_input*3, activation = 'sigmoid'), Reshape((size_of_input, size_of_input, 3))],
-                                   name = name)
-            
-
-        if (type==1): # Same as type 0, but we now add max pooling layers in between to help reduce parameter space. 
-               
-           self.mynn = Sequential([Conv2D(4,(3,3), input_shape=(size_of_input, size_of_input, 5), activation=LeakyReLU(alpha=0.1)),
-                                       MaxPooling2D(pool_size=(2,2)),
-                                       Conv2D(8,(3,3), activation=LeakyReLU(alpha=0.1)), 
-                                       MaxPooling2D(pool_size=(2,2)),
-                                       Conv2D(16, (3,3), activation=LeakyReLU(alpha=0.1)), 
-                                       MaxPooling2D(pool_size=(2,2)),
-                                       tf.keras.layers.Flatten(), 
-                                       Dense(500, activation=LeakyReLU(alpha=0.1)),
-                                       Dense(size_of_input*size_of_input*3, activation = 'sigmoid'), Reshape((size_of_input, size_of_input, 3))], name=name)
-        
-        if (type==2 or type==3 or type==4 or type==5 or type==6 or type==7 or type==8 or type==9 or type==10 or type==11 or type==12 or type==13):
-           self.mynn = uNet(size_of_input, type, name, kernelSize=kernelSize, dropRate = dropRate, layers=layers, sixMeasure=sixMeasure)
-           #self.mynn.name = name
-           
-    def forward(self, x): # predicted output of ff_network
-        res = self.mynn(x)
-        return res
+        self.mynn = uNet(size_of_input, type, name, kernelSize=kernelSize, dropRate = dropRate, layers=layers, sixMeasure=sixMeasure)
+    
     
 # Sets of functions which engineers the map fidelity loss function. 
 
@@ -286,12 +258,12 @@ def train_network(config, model):
         sigma = config['sigma']
         trainGen = FixedDataGenerator(X_train, y_train, batch_size=batchSize, shuffle=shuffle, sigma=sigma)
         validationGen = FixedDataGenerator(X_test, y_test, batch_size=batchSize, shuffle=shuffle, sigma=sigma)
-        history = model.mynn.fit(trainGen, validation_data=validationGen, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning])
+        history = model.mynn.fit(trainGen, validation_data=validationGen, epochs = num_of_epochs, callbacks = [reduce_lr, cp_callback, PlotLearning()])
    
     else: # Loads from a pretrained dataset. 
         trainGen = DataGenerator(**config['train_params'])
         validationGen = DataGenerator(**config['val_params'])
-        history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning])
+        history = model.mynn.fit(trainGen, validation_data=validationGen,  epochs=num_of_epochs,  callbacks = [reduce_lr, cp_callback, PlotLearning()])
 
     # save trained model at the very end
     model_json = model.mynn.to_json()

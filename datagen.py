@@ -194,7 +194,7 @@ class FixedDataGenerator(keras.utils.Sequence):
         return X, y
 
 
-if (__name__ == 'main'):
+if __name__ == '__main__':
     # parse through slurm array (for use w/ bash script. You can set shift to be a random integer for the purposes of testing locally)
     
     parser=argparse.ArgumentParser(description='test')
