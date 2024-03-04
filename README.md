@@ -1,5 +1,5 @@
 # Quantum Process Tomography of Structured Optical Gates with Convolutional Neural Networks
-Code used for the generation of synthetic experiments for the Quantum Process Tomography (QPT) of SU(2), as well as for the training of U-Nets on said examples. The results of this code are featured in our pre-print (https://arxiv.org/abs/2402.16616).  
+Code used for the generation of synthetic experiments for the Quantum Process Tomography (QPT) of complex SU(2) gates, as well as for the training of U-Nets on said examples. The results of this code are featured in our pre-print (https://arxiv.org/abs/2402.16616).  
 
 # How to use
 - datagen.py generates synthetic datasets of periodic/waveplate-based SU(2) processes.
