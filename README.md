@@ -13,7 +13,7 @@ Use of the datagen.py, train.py, and datamash.py scripts requires configuration 
 This code was used principally in a Slurm-based environment provided by Compute Canada. We provide the scripts used to run the code therein in the startups folder. In the command line, executing sbatch <name of slurm script> runs the script, where: 
 
 - startup_datagen runs DatagenLocal.py (this requests the use of CPU nodes)
-- startup_train runs train.py (this requests the use of multiple GPU nodes)
+- startup_train runs train.py (this requests the use of GPU nodes)
 - startup_datamash runs datamash.py (this requests the use of CPU nodes)
 
 It is possible to run multiple instances of the above process in parallel by configuring or adding the --array line in each script, then modifying the .yaml names with an integer at the end (assume base 0 numbering).  
